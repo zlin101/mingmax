@@ -1,0 +1,353 @@
+# TASKS.md
+
+## 当前工作模式
+
+- Claude 负责开发和测试。
+- Codex 负责 code review 和验收。
+- Codex 不参与测试执行。
+- 开发前必须阅读 `AGENTS.md` 和 `.supports/` 下的规范文档。
+- 每次开发任务下达时，Codex 先在本文件写明建议新建分支和分支名称；Claude 基于该分支开发和测试。
+
+## 分支计划
+
+第一阶段拆分为 4 个可独立 review 和验收的分支，按顺序执行。
+
+### Branch 1: 约束文档与计划
+
+- 任务名称：v0.1 约束文档与开发计划
+- 建议分支名：`docs/v0.1-context-and-plan`
+- 分支用途：提交 `AGENTS.md` 和 `.supports/` 下的项目上下文、架构、决策、任务、Prompt、API、开发指南文档。
+- 分支起点：当前主开发基线。
+- 交付后验收人：Codex。
+- Definition of Done：规范命名的 `.supports/` 文档齐全；旧错名空文档按 `.supports/DECISIONS.md` 的迁移决策处理；Claude/Codex/项目负责人分工、分支、commit、push、merge 规则明确。
+
+Claude 开发前建议执行：
+
+```bash
+git switch -c docs/v0.1-context-and-plan
+```
+
+### Branch 2: 项目基础结构
+
+- 任务名称：v0.1 FastAPI 项目基础结构
+- 建议分支名：`feature/v0.1-project-foundation`
+- 分支用途：建立 FastAPI、uv、pytest、格式化、基础 app/tests 结构和健康检查，不实现紫微业务逻辑。
+- 分支起点：`docs/v0.1-context-and-plan` 合并后的基线。
+- 交付后验收人：Codex。
+- Definition of Done：`app/` 和 `tests/` 基础结构存在；FastAPI app 可导入；健康检查接口可测；`pyproject.toml` 配置 Black/isort/pytest；依赖变更包含 `uv.lock`；如新增配置项则包含 `.env.example`；Claude 报告格式化、lint、测试命令和结果。
+
+### Branch 3: 命盘核心结构
+
+- 任务名称：v0.1 命盘 Schema、Engine stub 与 Normalizer
+- 建议分支名：`feature/v0.1-chart-core`
+- 分支用途：实现 BirthInfo、RawChart、NormalizedChart、ZiweiChartEngine stub、ChartNormalizer 和确定性逻辑测试。
+- 分支起点：`feature/v0.1-project-foundation` 合并后的基线。
+- 交付后验收人：Codex。
+- Definition of Done：出生信息 Schema 校验覆盖合法和非法输入；Engine stub 明确标记 `source = "stub"` 或等价字段；Normalizer 输出稳定结构；LLM 不参与排盘；Claude 报告相关测试命令和结果。
+
+### Branch 4: LLM 分析闭环
+
+- 任务名称：v0.1 LLM 分析、Prompt、Service 与 API 闭环
+- 建议分支名：`feature/v0.1-analysis-flow`
+- 分支用途：实现 LLM 抽象、Mock LLM、Prompt 文件、ZiweiAnalysisAgent、AnalysisService、`POST /api/v1/ziwei/analyze` 和 Markdown 报告。
+- 分支起点：`feature/v0.1-chart-core` 合并后的基线。
+- 交付后验收人：Codex。
+- Definition of Done：所有 LLM 调用经统一抽象；测试使用 Mock LLM；Prompt 独立文件存在且包含安全约束；API 合法和非法请求均有测试；Markdown 报告包含免责声明；至少测试免责声明存在，必要时检查禁用绝对化表达不会出现在固定 mock 输出中。
+
+后续每次新增开发任务，先在本节新增或更新：
+
+- 任务名称；
+- 建议分支名；
+- 分支用途；
+- 分支起点；
+- 交付后验收人。
+
+## 第一阶段目标
+
+建立 mingmax v0.1 的最小后端闭环：
+
+```text
+BirthInfo -> ZiweiChartEngine -> RawChart -> NormalizedChart -> ZiweiAnalysisAgent -> Markdown Report
+```
+
+第一阶段优先目标不是完整紫微算法，而是稳定项目结构、接口边界、Prompt 资产、测试策略和 Mock LLM 闭环。
+
+## Claude 开发任务计划
+
+### Task 1: 初始化后端结构和开发依赖
+
+目标：建立 FastAPI + uv + pytest 的基础项目结构。
+
+要求：
+
+- 使用 `uv` 管理依赖，不使用 `pip` 或 `poetry`。
+- 添加 FastAPI、Pydantic、pytest、pytest-asyncio、pytest-cov、httpx、Black、isort、flake8。
+- 创建 `app/` 和 `tests/` 基础结构。
+- 将默认 `main.py` 迁移为 `app/main.py`，根目录 `main.py` 可保留为轻量入口或删除，但不得破坏 `uv run` 使用。
+- 更新 `pyproject.toml` 中 Black、isort、pytest 配置。
+
+建议命令：
+
+```bash
+uv add fastapi pydantic pydantic-settings
+uv add --dev pytest pytest-asyncio pytest-cov httpx black isort flake8
+```
+
+验收关注：
+
+- 项目结构符合 `.supports/ARCHITECTURE.md`。
+- 依赖通过 uv 管理。
+- 无 `pip install` 文档或脚本。
+
+### Task 2: 定义 Schema
+
+目标：定义出生信息、原始命盘、标准命盘、分析结果和 API 响应结构。
+
+建议文件：
+
+- `app/schemas/birth.py`
+- `app/schemas/chart.py`
+- `app/schemas/analysis.py`
+
+必须覆盖：
+
+- 出生日期时间；
+- 性别或阴阳性别字段；
+- 出生地或时区字段；
+- `RawChart`；
+- `NormalizedChart`；
+- 宫位、星曜、四化等可扩展结构；
+- `AnalysisResult`；
+- `FollowupQuestion`；
+- `MarkdownReport` 或响应内的 `report_markdown` 字段。
+
+测试要求由 Claude 执行：
+
+- 出生信息合法输入通过；
+- 缺失必要字段失败；
+- 非法日期、非法时辰或非法枚举失败；
+- API 响应模型可序列化。
+
+### Task 3: 实现 Engine 接口和标准化
+
+目标：建立确定性排盘封装边界，不让 LLM 参与排盘。
+
+建议文件：
+
+- `app/engines/ziwei_chart_engine.py`
+- `app/engines/chart_normalizer.py`
+
+要求：
+
+- `ZiweiChartEngine` 对外暴露稳定方法，例如 `build_chart(birth_info: BirthInfo) -> RawChart`。
+- 第一阶段可使用 fixture/stub 返回可预测 `RawChart`。
+- `ChartNormalizer` 将 `RawChart` 转为 `NormalizedChart`。
+- 保留未来替换真实紫微库的内部封装点。
+
+测试要求由 Claude 执行：
+
+- Engine 返回确定性 `RawChart`。
+- Normalizer 输出结构稳定。
+- LLM 不参与排盘流程。
+
+### Task 4: 建立 LLM 抽象和 Mock Client
+
+目标：所有模型调用通过统一抽象层。
+
+建议文件：
+
+- `app/llm/base.py`
+- `app/llm/mock.py`
+
+要求：
+
+- 定义 `LLMClient` 协议或抽象基类。
+- Mock Client 返回固定结构，供单元测试使用。
+- 不在业务代码中直接调用第三方模型 SDK。
+- 配置项集中放在 `Settings`，不得硬编码模型名、URL 或 API Key。
+
+测试要求由 Claude 执行：
+
+- Mock Client 可返回固定分析内容。
+- Service/Agent 测试不真实调用外部 LLM API。
+
+### Task 5: 创建 Prompt 资产和加载逻辑
+
+目标：Prompt 不散落在业务逻辑中。
+
+建议文件：
+
+- `app/prompts/ziwei_analysis.md`
+- `app/prompts/theme_analysis.md`
+- `app/prompts/followup_questions.md`
+- `app/prompts/report.md`
+- `app/agents/prompt_loader.py`
+
+要求：
+
+- Prompt 必须只允许基于给定结构化命盘分析。
+- Prompt 必须禁止虚构星曜、宫位、四化、大限、流年。
+- Prompt 必须要求区分强结论、弱假设和待确认问题。
+- Prompt 必须避免绝对化、恐吓式、宿命论表达。
+- 报告 Prompt 必须包含免责声明要求。
+
+测试要求由 Claude 执行：
+
+- Prompt 文件存在。
+- Prompt 加载失败时有清晰异常。
+- Prompt 文本包含关键安全约束。
+
+### Task 6: 实现 ZiweiAnalysisAgent 和 Service 编排
+
+目标：完成从结构化命盘到分析结果的 LLM 流程。
+
+建议文件：
+
+- `app/agents/ziwei_analysis_agent.py`
+- `app/services/analysis_service.py`
+
+要求：
+
+- Agent 接收 `NormalizedChart`，不得接收未结构化出生信息后自行排盘。
+- Service 编排 Engine、Normalizer、Agent。
+- 输出包含整体分析、主题分析、宫位交叉验证、追问问题和 Markdown 报告。
+- 报告包含免责声明。
+
+测试要求由 Claude 执行：
+
+- Service 编排顺序正确。
+- Mock LLM 被调用。
+- 输出包含免责声明。
+- 异常分支有明确错误响应或异常。
+
+### Task 7: 实现 API
+
+目标：提供 v0.1 最小分析接口。
+
+建议文件：
+
+- `app/api/v1/routes_analysis.py`
+- `app/api/v1/router.py`
+- `app/main.py`
+
+建议接口：
+
+```text
+POST /api/v1/ziwei/analyze
+```
+
+要求：
+
+- API 层只做请求校验、依赖注入、响应封装。
+- 业务流程由 `AnalysisService` 处理。
+- 错误响应结构一致。
+
+测试要求由 Claude 执行：
+
+- 合法请求返回 200。
+- 非法请求返回 422 或统一错误结构。
+- 响应包含标准化命盘摘要、分析结果、追问问题和 Markdown 报告。
+
+## Claude 执行提示词
+
+```text
+你负责开发和测试 mingmax v0.1 第一阶段。开始前必须阅读 AGENTS.md 和 .supports/ 下的所有规范文档。
+
+请先查看 .supports/TASKS.md 的“分支计划”，确认当前任务对应分支。如果分支不存在，请从该任务指定的分支起点新建对应分支后再开发。
+
+本阶段目标是建立最小后端闭环：BirthInfo -> ZiweiChartEngine -> RawChart -> NormalizedChart -> ZiweiAnalysisAgent -> Markdown Report。
+
+约束：
+1. 只实现紫微斗数 + LLM Agent 分析闭环，不实现八字、MBTI、多体系交叉验证、用户系统、支付系统、复杂前端、向量数据库或任务队列。
+2. 紫微排盘必须由确定性程序或 stub engine 完成，LLM 不得参与排盘、历法换算、星曜落宫、四化、大限或流年计算。
+3. 所有 LLM 调用必须通过统一 LLM 抽象层，测试必须使用 Mock LLM Client，不得真实调用外部 LLM API。
+4. Prompt 必须独立成文件或清晰隔离的 Prompt 模块，不得散落硬编码在业务逻辑中。
+5. 使用 uv 管理依赖，不要使用 pip 或 poetry。
+6. 保持小而清晰的 Python 后端结构，不引入 LangChain、LangGraph、CrewAI、向量数据库、任务队列或不必要 ORM。
+7. 确定性逻辑必须补充测试。你负责运行测试并记录结果。
+8. 按 .supports/DEVELOPMENT_GUIDE.md 的 Commit 与 Push 规则提交和推送；commit message 使用 Conventional Commits。
+9. 不得自行 merge；merge 只由项目负责人执行。
+
+完成后请输出：
+- 分支名；
+- commit 列表；
+- 修改文件列表；
+- 关键架构决策；
+- 测试命令和测试结果；
+- 未完成事项或风险。
+
+Codex 只负责后续 code review 和验收，不参与测试执行。
+```
+
+## Code Review 申请
+
+### Branch 2: `feature/v0.1-project-foundation`
+
+**分支名：** `feature/v0.1-project-foundation`
+
+**Commit 列表：**
+
+1. `49cdfb1` — docs: add v0.1 planning docs and规范命名 .supports/ 文档
+2. `a199002` — feat: add FastAPI project foundation with health check
+
+**修改文件列表：**
+
+- `AGENTS.md` — 更新完整项目约束
+- `.supports/` — 新增 7 个规范文档，删除 3 个旧错名空文档
+- `pyproject.toml` — 配置依赖、Black/isort/pytest/hatch build
+- `uv.lock` — 依赖锁文件
+- `.env.example` — 环境变量示例
+- `app/__init__.py`, `app/main.py` — FastAPI 应用入口
+- `app/core/config.py` — Settings 配置类
+- `app/core/logging.py` — 统一 logger
+- `app/api/v1/__init__.py`, `app/api/v1/router.py` — 健康检查路由
+- `app/schemas/`, `app/services/`, `app/engines/`, `app/agents/`, `app/llm/`, `app/prompts/` — 空目录占位
+- `tests/conftest.py` — httpx AsyncClient fixture
+- `tests/test_app.py` — 应用创建测试
+- `tests/test_config.py` — 配置默认值测试
+- `tests/test_logging.py` — logger 单例测试
+- `tests/test_health.py` — 健康检查接口测试
+
+**关键架构决策：**
+
+- Settings 使用 `MINGMAX_` 环境变量前缀，通过 `pydantic-settings` 管理
+- 健康检查挂在 `GET /api/v1/health`，符合 API 规范前缀
+- `app/main.py` 使用工厂模式 `create_app()`，便于测试和扩展
+- 项目使用 `app/` 作为包目录（非 `mingmax/`），通过 hatch build 配置映射
+
+**测试命令和结果：**
+
+```bash
+# 格式化
+uv run black .     # All done! 15 files left unchanged
+uv run isort .     # Skipped 2 files (already sorted)
+uv run flake8 app/ tests/ --max-line-length=120  # 0 errors
+
+# 测试
+uv run pytest -v   # 7 passed in 0.02s
+uv run pytest --cov=app  # 100% coverage, 42 statements
+```
+
+**未完成事项或风险：**
+
+- 无。本分支仅搭建基础结构，不涉及紫微业务逻辑。
+- `main.py`（根目录）保留但未更新，未来可考虑作为轻量入口或删除。
+
+**请求 Codex review。**
+
+---
+
+## Codex 验收清单
+
+Codex 验收时关注：
+
+- 是否遵守 `AGENTS.md` 和 `.supports/` 约束；
+- 是否保持分层清晰；
+- API 层是否没有直接调用 LLM 或排盘逻辑；
+- Engine 是否承担确定性排盘边界；
+- Agent 是否只解释结构化命盘；
+- LLM 调用是否经过统一抽象；
+- Prompt 是否独立管理并包含安全约束；
+- 测试是否由 Claude 执行并报告结果；
+- 报告是否包含免责声明；
+- 是否引入超出 v0.1 范围的依赖或模块。
