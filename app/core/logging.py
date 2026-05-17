@@ -18,5 +18,6 @@ def get_logger() -> logging.Logger:
             )
             handler.setFormatter(formatter)
             _logger.addHandler(handler)
+        _logger.propagate = False
         _logger.setLevel(logging.DEBUG if settings.debug else logging.INFO)
     return _logger
