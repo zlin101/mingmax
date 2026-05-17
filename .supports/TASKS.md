@@ -337,6 +337,55 @@ uv run pytest --cov=app  # 100% coverage, 42 statements
 
 ---
 
+### Branch 3: `feature/v0.1-chart-core`
+
+**分支名：** `feature/v0.1-chart-core`
+
+**Commit 列表：**
+
+1. `251e135` — feat: add birth info schemas, chart engine stub and normalizer
+
+**修改文件列表：**
+
+- `app/schemas/birth.py` — BirthInfo Schema（含 CalendarType、Gender 枚举、timezone IANA 校验）
+- `app/schemas/chart.py` — RawChart、NormalizedChart、Palace、Star、FourHua Schema
+- `app/schemas/analysis.py` — AnalysisResult、FollowupQuestion、AnalysisResponse、AnalysisOptions Schema
+- `app/engines/ziwei_chart_engine.py` — ZiweiChartEngine stub（source="stub"，12 宫确定性输出）
+- `app/engines/chart_normalizer.py` — ChartNormalizer（RawChart → NormalizedChart）
+- `tests/test_birth_schema.py` — BirthInfo 校验测试（9 项：合法/非法/缺失/边界）
+- `tests/test_chart_schema.py` — Palace/RawChart/NormalizedChart 序列化测试
+- `tests/test_chart_engine.py` — Engine 确定性测试、Normalizer 结构测试（6 项）
+- `tests/test_analysis_schema.py` — AnalysisResult/Response 序列化测试
+
+**关键架构决策：**
+
+- Engine stub 显式标记 `source="stub"`（D009 决策），不伪装真实排盘
+- LLM 不参与排盘流程，ZiweiChartEngine 只做确定性计算
+- BirthInfo 使用 `zoneinfo.ZoneInfo` 校验 IANA 时区格式
+- NormalizedChart 携带 summary 字段，供后续 Agent 分析使用
+- AnalysisOptions 支持 themes 配置，为 Branch 4 主题分析预留
+
+**测试命令和结果：**
+
+```bash
+uv run black --check app/ tests/ main.py   # 29 files unchanged
+uv run isort --check-only app/ tests/ main.py  # no changes
+uv run flake8 app/ tests/ main.py --max-line-length=120  # 0 errors
+
+uv run pytest -v   # 28 passed in 0.04s
+uv run pytest --cov=app  # 100% coverage, 129 statements, 0 miss
+```
+
+**未完成事项或风险：**
+
+- 无。本分支仅实现 Schema、Engine stub 和 Normalizer，不涉及 LLM 调用。
+- `lunar` calendar_type 已在 Schema 层面接受，但 Engine stub 未区分处理。Branch 4 或后续需在 Service 层增加 `UNSUPPORTED_CALENDAR_TYPE` 校验。
+- AnalysisRequest 中 `birth` 字段暂用 `dict`，Branch 4 实现 API 时将替换为 `BirthInfo`。
+
+**请求 Codex review。**
+
+---
+
 ## Codex 验收清单
 
 Codex 验收时关注：
