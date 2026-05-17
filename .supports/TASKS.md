@@ -279,6 +279,64 @@ POST /api/v1/ziwei/analyze
 Codex 只负责后续 code review 和验收，不参与测试执行。
 ```
 
+## Code Review 申请
+
+### Branch 2: `feature/v0.1-project-foundation`
+
+**分支名：** `feature/v0.1-project-foundation`
+
+**Commit 列表：**
+
+1. `49cdfb1` — docs: add v0.1 planning docs and规范命名 .supports/ 文档
+2. `a199002` — feat: add FastAPI project foundation with health check
+
+**修改文件列表：**
+
+- `AGENTS.md` — 更新完整项目约束
+- `.supports/` — 新增 7 个规范文档，删除 3 个旧错名空文档
+- `pyproject.toml` — 配置依赖、Black/isort/pytest/hatch build
+- `uv.lock` — 依赖锁文件
+- `.env.example` — 环境变量示例
+- `app/__init__.py`, `app/main.py` — FastAPI 应用入口
+- `app/core/config.py` — Settings 配置类
+- `app/core/logging.py` — 统一 logger
+- `app/api/v1/__init__.py`, `app/api/v1/router.py` — 健康检查路由
+- `app/schemas/`, `app/services/`, `app/engines/`, `app/agents/`, `app/llm/`, `app/prompts/` — 空目录占位
+- `tests/conftest.py` — httpx AsyncClient fixture
+- `tests/test_app.py` — 应用创建测试
+- `tests/test_config.py` — 配置默认值测试
+- `tests/test_logging.py` — logger 单例测试
+- `tests/test_health.py` — 健康检查接口测试
+
+**关键架构决策：**
+
+- Settings 使用 `MINGMAX_` 环境变量前缀，通过 `pydantic-settings` 管理
+- 健康检查挂在 `GET /api/v1/health`，符合 API 规范前缀
+- `app/main.py` 使用工厂模式 `create_app()`，便于测试和扩展
+- 项目使用 `app/` 作为包目录（非 `mingmax/`），通过 hatch build 配置映射
+
+**测试命令和结果：**
+
+```bash
+# 格式化
+uv run black .     # All done! 15 files left unchanged
+uv run isort .     # Skipped 2 files (already sorted)
+uv run flake8 app/ tests/ --max-line-length=120  # 0 errors
+
+# 测试
+uv run pytest -v   # 7 passed in 0.02s
+uv run pytest --cov=app  # 100% coverage, 42 statements
+```
+
+**未完成事项或风险：**
+
+- 无。本分支仅搭建基础结构，不涉及紫微业务逻辑。
+- `main.py`（根目录）保留但未更新，未来可考虑作为轻量入口或删除。
+
+**请求 Codex review。**
+
+---
+
 ## Codex 验收清单
 
 Codex 验收时关注：
