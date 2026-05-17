@@ -1,11 +1,18 @@
-import uuid
+import hashlib
 
-from app.schemas.birth import BirthInfo
+from app.schemas.birth import BirthInfo, CalendarType
 from app.schemas.chart import Palace, RawChart
+
+
+class UnsupportedCalendarTypeError(ValueError):
+    pass
 
 
 class ZiweiChartEngine:
     def build_chart(self, birth_info: BirthInfo) -> RawChart:
+        if birth_info.calendar_type != CalendarType.solar:
+            calendar_type = getattr(birth_info.calendar_type, "value", birth_info.calendar_type)
+            raise UnsupportedCalendarTypeError(f"Unsupported calendar type: {calendar_type}")
         return RawChart(
             source="stub",
             chart_id=self._generate_chart_id(birth_info),
@@ -14,7 +21,9 @@ class ZiweiChartEngine:
         )
 
     def _generate_chart_id(self, birth_info: BirthInfo) -> str:
-        return f"stub-{uuid.uuid4().hex[:8]}"
+        payload = birth_info.model_dump_json()
+        digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()[:12]
+        return f"stub-{digest}"
 
     def _generate_stub_palaces(self) -> list[Palace]:
         palace_names = [

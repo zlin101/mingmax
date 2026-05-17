@@ -19,7 +19,7 @@ class Palace(BaseModel):
     name: str
     heavenly_stem: str | None = None
     earthly_branch: str | None = None
-    stars: list[Star] = []
+    stars: list[Star] = Field(default_factory=list)
     four_hua: FourHua | None = None
     is_body_palace: bool = False
 
@@ -28,7 +28,7 @@ class RawChart(BaseModel):
     source: str = "stub"
     chart_id: str
     birth_info_snapshot: dict
-    palaces: list[Palace] = []
+    palaces: list[Palace] = Field(default_factory=list)
     four_hua: FourHua | None = None
 
 
@@ -36,5 +36,5 @@ class NormalizedChart(BaseModel):
     chart_id: str
     source: str
     summary: str
-    palaces: list[Palace] = []
+    palaces: list[Palace] = Field(default_factory=list)
     four_hua: FourHua | None = None

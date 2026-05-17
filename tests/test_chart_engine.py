@@ -1,7 +1,9 @@
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 from app.engines.chart_normalizer import ChartNormalizer
-from app.engines.ziwei_chart_engine import ZiweiChartEngine
+from app.engines.ziwei_chart_engine import UnsupportedCalendarTypeError, ZiweiChartEngine
 from app.schemas.birth import BirthInfo
 
 
@@ -34,6 +36,30 @@ def test_engine_chart_id_format() -> None:
     engine = ZiweiChartEngine()
     chart = engine.build_chart(_birth_info())
     assert chart.chart_id.startswith("stub-")
+
+
+def test_engine_chart_id_is_deterministic() -> None:
+    engine = ZiweiChartEngine()
+    birth = _birth_info()
+
+    chart1 = engine.build_chart(birth)
+    chart2 = engine.build_chart(birth)
+
+    assert chart1.chart_id == chart2.chart_id
+
+
+def test_engine_rejects_unsupported_lunar_calendar() -> None:
+    engine = ZiweiChartEngine()
+    birth = BirthInfo(
+        calendar_type="lunar",
+        birth_datetime=datetime(1995, 5, 17, 8, 30, tzinfo=timezone(timedelta(hours=8))),
+        gender="female",
+        birth_place="Shanghai, China",
+        timezone="Asia/Shanghai",
+    )
+
+    with pytest.raises(UnsupportedCalendarTypeError, match="Unsupported calendar type: lunar"):
+        engine.build_chart(birth)
 
 
 def test_engine_preserves_birth_info() -> None:
