@@ -394,6 +394,7 @@ uv run pytest --cov=app  # 100% coverage, 129 statements, 0 miss
 **Commit 列表：**
 
 1. `b49dbc2` — feat: add LLM abstraction, mock client, prompts, agent, service and API
+2. `2ecf8d7` — docs: add code review request for feature/v0.1-analysis-flow
 
 **修改文件列表：**
 
