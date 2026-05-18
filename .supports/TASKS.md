@@ -344,6 +344,7 @@ uv run pytest --cov=app  # 100% coverage, 42 statements
 **Commit 列表：**
 
 1. `251e135` — feat: add birth info schemas, chart engine stub and normalizer
+2. `5edff35` — docs: add code review request for feature/v0.1-chart-core
 
 **修改文件列表：**
 
