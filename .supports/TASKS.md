@@ -569,6 +569,80 @@ uv run pytest --cov=app  # 99% coverage, 239 statements, 2 miss
 
 ---
 
+### Branch 5: `feature/v0.1-real-llm-client`
+
+**分支名：** `feature/v0.1-real-llm-client`
+
+**Commit 列表：**
+
+1. `4a9f3c0` — docs: add real llm client branch plan (Codex)
+2. `bd54ccd` — feat: add OpenAI-compatible LLM client with configurable provider
+
+**修改文件列表：**
+
+- `app/llm/openai_compatible.py` — OpenAICompatibleLLMClient + LLMClientError
+- `app/core/config.py` — 新增 llm_provider、llm_timeout_seconds 配置
+- `app/api/dependencies.py` — 根据 MINGMAX_LLM_PROVIDER 选择 Mock/Real Client
+- `.env.example` — 新增 MINGMAX_LLM_PROVIDER、LLM_TIMEOUT_SECONDS
+- `pyproject.toml` — httpx 从 dev 移至运行时依赖
+- `uv.lock` — 依赖锁文件更新
+- `tests/test_real_llm_client.py` — 真实 Client 单元测试（9 项：成功/鉴权/服务器/超时/网络/缺内容）
+- `tests/test_dependencies.py` — Provider 选择测试（2 项）
+
+**关键架构决策：**
+
+- OpenAICompatibleLLMClient 通过 httpx 调用 `/chat/completions`，不依赖 openai SDK
+- LLMClientError 统一包装所有错误类型（auth/server/timeout/network/empty）
+- `MINGMAX_LLM_PROVIDER=mock` 使用 MockLLMClient，`openai_compatible` 使用真实 Client
+- 超时通过 `MINGMAX_LLM_TIMEOUT_SECONDS` 可配置，默认 30s
+- 所有调用仍经 LLMClient 抽象，API 层和 Service 层不感知具体实现
+
+**单元测试命令和结果：**
+
+```bash
+uv run black --check app/ tests/ main.py   # 43 files unchanged
+uv run isort --check-only app/ tests/ main.py  # no changes
+uv run flake8 app/ tests/ main.py --max-line-length=120  # 0 errors
+
+uv run pytest -v   # 60 passed in 0.10s
+uv run pytest --cov=app  # 99% coverage, 290 statements, 3 miss
+```
+
+**手动真实 LLM 集成验证：**
+
+```text
+配置（脱敏）：
+- MINGMAX_LLM_PROVIDER=openai_compatible
+- MINGMAX_LLM_MODEL=glm-5.1
+- MINGMAX_LLM_BASE_URL=https://open.bigmodel.cn/api/paas/v4/
+- MINGMAX_LLM_API_KEY=sk-***（已配置于本机 .env，未提交）
+- MINGMAX_LLM_TIMEOUT_SECONDS=120
+
+简单调用测试：prompt="请用一句话回答：1+1等于几？"
+→ 成功，返回 "1+1等于2。"
+
+完整 API 闭环测试（themes=[], followup=false, report=true）：
+→ 成功
+- Chart source: stub（排盘仍为 stub，未伪装真实排盘）
+- Analysis summary: 366 chars（真实 LLM 生成）
+- Report: 667 chars，包含免责声明（LLM 自行生成 + Agent 兜底）
+- LLM 正确识别 stub 命盘数据为空，提示无法进行实质分析
+
+风险提示：
+- 30s 默认超时对完整紫微分析可能不够，建议生产环境设 120s
+- 真实 LLM 输出质量取决于模型和 Prompt，stub 命盘下 LLM 会如实说明数据不足
+```
+
+**未完成事项或风险：**
+
+- 仅实现 `chat_completions` wire API，`responses` API 暂未支持（按任务优先级）
+- 默认超时 30s 可能不够，生产环境建议 120s+，已在 .env.example 中注释说明
+- chart.source 仍为 `stub`，LLM 会如实识别并说明数据不足
+
+**请求 Codex review。**
+
+---
+
 ## Codex 验收清单
 
 Codex 验收时关注：
