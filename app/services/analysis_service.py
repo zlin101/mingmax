@@ -2,7 +2,7 @@ from app.agents.ziwei_analysis_agent import ZiweiAnalysisAgent
 from app.engines.chart_normalizer import ChartNormalizer
 from app.engines.ziwei_chart_engine import ZiweiChartEngine
 from app.llm.mock import DISCLAIMER
-from app.schemas.analysis import AnalysisOptions, AnalysisResponse, AnalysisResult, FollowupQuestion
+from app.schemas.analysis import AnalysisOptions, AnalysisResponse, AnalysisResult, FollowupQuestion, ThemeAnalysis
 from app.schemas.birth import BirthInfo
 
 
@@ -18,8 +18,13 @@ class AnalysisService:
 
         analysis_text = await self._agent.analyze(normalized, options.themes)
 
+        theme_analyses = []
         if options.themes:
-            await self._agent.analyze_themes(normalized, options.themes)
+            theme_results = await self._agent.analyze_themes(normalized, options.themes)
+            theme_analyses = [
+                ThemeAnalysis(theme=theme, observations=[result], uncertainty="mock")
+                for theme, result in zip(options.themes, theme_results)
+            ]
 
         followup_questions = []
         if options.include_followup_questions:
@@ -31,10 +36,11 @@ class AnalysisService:
             report_markdown = await self._agent.generate_report(normalized, analysis_text)
 
         analysis_result = AnalysisResult(
-            summary="基于当前结构化命盘的总体观察。",
-            strong_signals=["stub 分析结果"],
+            summary=analysis_text,
+            strong_signals=[],
             weak_hypotheses=[],
             cross_checks=[],
+            theme_analyses=theme_analyses,
             safety_note=DISCLAIMER,
         )
 

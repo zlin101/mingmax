@@ -73,6 +73,7 @@ async def test_analyze_lunar_calendar(client: AsyncClient) -> None:
         },
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 422
     data = response.json()
-    assert "Unsupported calendar type: lunar" in data["analysis"]["summary"]
+    assert data["detail"]["error"]["code"] == "UNSUPPORTED_CALENDAR_TYPE"
+    assert "Unsupported calendar type: lunar" in data["detail"]["error"]["message"]

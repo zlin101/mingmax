@@ -40,7 +40,16 @@ async def test_service_calls_mock_llm() -> None:
     service = _service()
     result = await service.analyze(_birth_info(), AnalysisOptions())
 
-    assert result.analysis.summary is not None
+    assert "紫微斗数分析报告" in result.analysis.summary
+
+
+async def test_service_includes_theme_analysis() -> None:
+    service = _service()
+    result = await service.analyze(_birth_info(), AnalysisOptions(themes=["career"]))
+
+    assert len(result.analysis.theme_analyses) == 1
+    assert result.analysis.theme_analyses[0].theme == "career"
+    assert len(result.analysis.theme_analyses[0].observations) == 1
 
 
 async def test_service_report_contains_disclaimer() -> None:
