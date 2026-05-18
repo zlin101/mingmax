@@ -387,6 +387,65 @@ uv run pytest --cov=app  # 100% coverage, 129 statements, 0 miss
 
 ---
 
+### Branch 4: `feature/v0.1-analysis-flow`
+
+**分支名：** `feature/v0.1-analysis-flow`
+
+**Commit 列表：**
+
+1. `b49dbc2` — feat: add LLM abstraction, mock client, prompts, agent, service and API
+
+**修改文件列表：**
+
+- `app/llm/base.py` — LLMClient 抽象基类
+- `app/llm/mock.py` — MockLLMClient，含 DISCLAIMER 和 MOCK_ANALYSIS 常量
+- `app/core/config.py` — 新增 llm_model、llm_api_key、llm_base_url 配置
+- `app/agents/prompt_loader.py` — Prompt 文件加载器，含 PromptLoadError
+- `app/agents/ziwei_analysis_agent.py` — Agent 封装 analyze/themes/followup/report
+- `app/services/analysis_service.py` — 编排 Engine→Normalizer→Agent 流程
+- `app/api/v1/routes_analysis.py` — POST /api/v1/ziwei/analyze 端点
+- `app/api/v1/__init__.py` — 注册 analysis_router
+- `app/prompts/ziwei_analysis.md` — 基础分析 Prompt（含安全约束）
+- `app/prompts/theme_analysis.md` — 主题分析 Prompt
+- `app/prompts/followup_questions.md` — 追问生成 Prompt
+- `app/prompts/report.md` — 报告生成 Prompt（含免责声明要求）
+- `.env.example` — 新增 LLM 配置项
+- `tests/test_mock_llm.py` — Mock LLM 测试（3 项）
+- `tests/test_prompt_loading.py` — Prompt 加载和安全约束测试（4 项）
+- `tests/test_analysis_service.py` — Service 编排测试（5 项）
+- `tests/test_api_analysis.py` — API 合法/非法/边界测试（4 项）
+
+**关键架构决策：**
+
+- LLMClient 为抽象基类，MockLLMClient 返回固定内容，真实 Client 未来替换
+- API 层通过 Depends 注入 AnalysisService，不直接调用 LLM 或 Engine
+- ZiweiAnalysisAgent 只接收 NormalizedChart，不参与排盘
+- Prompt 独立文件管理，通过 prompt_loader 加载
+- 报告生成后检查是否包含 DISCLAIMER，缺失时自动追加
+- Settings 新增 LLM 配置，使用 MINGMAX_ 前缀
+
+**测试命令和结果：**
+
+```bash
+uv run black --check app/ tests/ main.py   # 39 files unchanged
+uv run isort --check-only app/ tests/ main.py  # no changes
+uv run flake8 app/ tests/ main.py --max-line-length=120  # 0 errors
+
+uv run pytest -v   # 48 passed in 0.09s
+uv run pytest --cov=app  # 99% coverage, 239 statements, 2 miss
+```
+
+**未完成事项或风险：**
+
+- Agent 主题分析结果暂未写入 AnalysisResponse（Mock 返回固定文本，结构化解析留待后续）
+- AnalysisService 中 AnalysisResult 的 strong_signals/weak_hypotheses 为 stub 硬编码，待接入真实 LLM 后替换
+- 覆盖率 99%：`llm/base.py` 抽象方法声明未覆盖（正常），`ziwei_analysis_agent.py:36` 为免责追加分支
+- 未引入超出 v0.1 范围的依赖
+
+**请求 Codex review。**
+
+---
+
 ## Codex 验收清单
 
 Codex 验收时关注：
