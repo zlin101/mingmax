@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.api.dependencies import get_analysis_service
+from app.api.errors import llm_client_failed_exception
 from app.engines.ziwei_chart_engine import UnsupportedCalendarTypeError
+from app.llm.openai_compatible import LLMClientError
 from app.schemas.analysis import AnalysisRequest, AnalysisResponse, ErrorResponse
 from app.services.analysis_service import AnalysisService
 
@@ -26,3 +28,5 @@ async def analyze(
                 }
             },
         )
+    except LLMClientError as e:
+        raise llm_client_failed_exception(e) from e
