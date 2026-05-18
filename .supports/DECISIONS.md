@@ -66,6 +66,24 @@ BirthInfo -> ZiweiChartEngine -> RawChart -> NormalizedChart -> ZiweiAnalysisAge
 - 决策：第一阶段允许使用 Engine stub 建立闭环，但 stub 结果必须通过 `source = "stub"`、`is_stub = true` 或等价字段显式标记。
 - 影响：stub 结果不得伪装为真实紫微排盘结果；报告或 API 响应不得暗示 stub 已完成真实排盘。
 
+### D010: 真实 LLM 接入必须可配置且仍经过 LLMClient 抽象
+
+- 状态：已确认
+- 决策：Branch 5 开始支持真实 LLM 调用。运行时通过 `MINGMAX_LLM_PROVIDER` 选择 `mock` 或 `openai_compatible`，真实调用必须经过 `LLMClient` 抽象。
+- 影响：API 层、Service 层和 Agent 以外的业务逻辑不得直接调用第三方模型 SDK 或 HTTP API；单元测试不得真实访问外部 LLM。
+
+### D011: 真实 LLM 只负责解释，不负责排盘
+
+- 状态：已确认
+- 决策：即使接入真实模型，紫微排盘仍由 `ZiweiChartEngine` 完成。当前阶段如果 Engine 仍是 stub，则响应必须保留 `source = "stub"`。
+- 影响：Prompt、Agent 和真实 LLM Client 不得承担历法换算、安星、定宫、四化、大限、流年等确定性逻辑。
+
+### D012: 真实 KEY 和本机私密配置不得进入仓库
+
+- 状态：已确认
+- 决策：`.env.example` 可以记录变量名和空值示例，真实 `.env`、API Key、token、本机私密 base URL 不得提交。
+- 影响：Claude 进行手动真实 LLM 验证时，只能记录脱敏配置和响应摘要。
+
 ## 待确认决策
 
 ### P001: 紫微排盘底层实现来源
@@ -73,7 +91,7 @@ BirthInfo -> ZiweiChartEngine -> RawChart -> NormalizedChart -> ZiweiAnalysisAge
 - 选项：自研最小规则引擎、封装第三方库、先以内部接口 + fixture stub 建立闭环。
 - 建议：v0.1 第一阶段先定义 `ZiweiChartEngine` 接口和测试替身，避免在架构未稳定时绑定第三方库。
 
-### P002: LLM Provider 选择
+### P002: 真实 LLM Provider 细节
 
-- 选项：OpenAI 兼容接口、本地网关、其他模型服务。
-- 要求：无论选择哪种 provider，都必须通过内部 LLM 抽象层接入，并允许单元测试使用 Mock LLM Client。
+- 选项：OpenAI-compatible `chat_completions`、OpenAI-compatible `responses`、本地兼容网关。
+- 要求：具体 provider 可由本机环境配置决定；代码只依赖项目内 `LLMClient` 抽象和配置项。

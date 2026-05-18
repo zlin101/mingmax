@@ -10,7 +10,7 @@
 
 ## 分支计划
 
-第一阶段拆分为 4 个可独立 review 和验收的分支，按顺序执行。
+第一阶段拆分为 5 个可独立 review 和验收的分支，按顺序执行。
 
 ### Branch 1: 约束文档与计划
 
@@ -53,6 +53,15 @@ git switch -c docs/v0.1-context-and-plan
 - 分支起点：`feature/v0.1-chart-core` 合并后的基线。
 - 交付后验收人：Codex。
 - Definition of Done：所有 LLM 调用经统一抽象；测试使用 Mock LLM；Prompt 独立文件存在且包含安全约束；API 合法和非法请求均有测试；Markdown 报告包含免责声明；至少测试免责声明存在，必要时检查禁用绝对化表达不会出现在固定 mock 输出中。
+
+### Branch 5: 真实 LLM 接入与真实请求验证
+
+- 任务名称：v0.1 真实 LLM Client 接入
+- 建议分支名：`feature/v0.1-real-llm-client`
+- 分支用途：实现可配置的真实 LLM Client，让 API 在配置了真实 KEY、模型和 base URL 时不再使用 MockLLMClient。
+- 分支起点：`feature/v0.1-analysis-flow` 合并后的基线。
+- 交付后验收人：Codex。
+- Definition of Done：所有真实 LLM 调用仍经 `LLMClient` 抽象；单元测试不真实访问外部 LLM；真实调用通过手动集成验证记录；失败时返回清晰错误；报告仍包含免责声明；LLM 不参与排盘，命盘仍来自 `ZiweiChartEngine`。
 
 后续每次新增开发任务，先在本节新增或更新：
 
@@ -248,6 +257,66 @@ POST /api/v1/ziwei/analyze
 - 非法请求返回 422 或统一错误结构。
 - 响应包含标准化命盘摘要、分析结果、追问问题和 Markdown 报告。
 
+### Task 8: 接入真实 LLM Client
+
+目标：在保持统一 LLM 抽象层的前提下，支持真实模型调用，替换 API 运行时默认 Mock 输出。
+
+建议文件：
+
+- `app/llm/openai_compatible.py`
+- `app/api/dependencies.py`
+- `app/core/config.py`
+- `.env.example`
+- `tests/test_real_llm_client.py`
+- `tests/test_api_analysis.py`
+- `.supports/DECISIONS.md`
+- `.supports/API_SPEC.md`
+
+要求：
+
+- 新增 `OpenAICompatibleLLMClient` 或等价真实 Client，实现 `LLMClient.generate(prompt: str, context: str = "") -> str`。
+- 真实 Client 必须从 `Settings` 读取配置，不得硬编码 API Key、base URL、模型名、wire API 或超时时间。
+- 继续保留 `MockLLMClient`，用于单元测试和无 KEY 本地开发。
+- API 运行时通过依赖装配选择真实 Client：当 `MINGMAX_LLM_PROVIDER=mock` 时使用 Mock；当 `MINGMAX_LLM_PROVIDER=openai_compatible` 时使用真实 Client。
+- 支持至少一种 OpenAI-compatible wire API；建议同时支持：
+  - `MINGMAX_LLM_WIRE_API=chat_completions`：`POST {base_url}/chat/completions`
+  - `MINGMAX_LLM_WIRE_API=responses`：`POST {base_url}/responses`
+- 如果项目运行时使用 `httpx` 调用外部 API，必须将 `httpx` 放入运行时依赖，而不是只放在 dev dependency。
+- 外部请求必须设置超时，例如 `MINGMAX_LLM_TIMEOUT_SECONDS=30`。
+- 请求失败、非 2xx、响应缺少文本时，必须抛出项目内清晰异常，例如 `LLMClientError`。
+- API 层不得直接调用第三方模型 SDK 或 HTTP 客户端，仍由 Service/Agent 通过 `LLMClient` 间接调用。
+- LLM 只解释 `NormalizedChart`，不得参与排盘、历法换算、星曜落宫、四化、大限或流年计算。
+- 真实 LLM 输出仍必须经过报告免责声明兜底逻辑；报告缺少免责声明时自动补齐。
+- 不要提交真实 `.env` 或任何 KEY。
+
+建议配置：
+
+```text
+MINGMAX_LLM_PROVIDER=openai_compatible
+MINGMAX_LLM_MODEL=<由本机环境配置>
+MINGMAX_LLM_API_KEY=<由本机环境配置>
+MINGMAX_LLM_BASE_URL=<由本机环境配置，例如 https://api.openai.com/v1 或本地兼容网关>
+MINGMAX_LLM_WIRE_API=chat_completions
+MINGMAX_LLM_TIMEOUT_SECONDS=30
+```
+
+测试要求由 Claude 执行：
+
+- 单元测试必须 mock 外部 HTTP，不得真实调用外部 LLM。
+- 覆盖真实 Client 的成功解析、401/403、5xx、超时或网络异常、响应缺少文本等分支。
+- 覆盖依赖装配：`MINGMAX_LLM_PROVIDER=mock` 使用 `MockLLMClient`，`openai_compatible` 使用真实 Client。
+- 覆盖 API 使用真实 Client 的 mock HTTP 路径，确保 `POST /api/v1/ziwei/analyze` 返回分析文本、主题分析、追问、Markdown 报告。
+- 手动集成验证可以真实调用已配置 KEY，并在 `.supports/TASKS.md` 的 Code Review 申请中记录请求样例、响应摘要、脱敏后的配置项和风险。
+- 手动集成验证不得把真实 KEY、完整敏感响应或本机私密配置写入仓库。
+
+验收关注：
+
+- Runtime 不再被硬编码到 `MockLLMClient`。
+- 真实 Client 不绕过 `LLMClient` 抽象。
+- 单元测试不依赖真实 KEY 或外网。
+- 手动真实调用结果可复现，且报告包含免责声明。
+- `chart.source` 仍标记为 `stub`，不得暗示已经实现真实紫微排盘。
+
 ## Claude 执行提示词
 
 ```text
@@ -274,6 +343,60 @@ POST /api/v1/ziwei/analyze
 - 修改文件列表；
 - 关键架构决策；
 - 测试命令和测试结果；
+- 未完成事项或风险。
+
+Codex 只负责后续 code review 和验收，不参与测试执行。
+```
+
+## Claude 执行提示词：Branch 5 真实 LLM Client
+
+```text
+你负责开发和测试 mingmax v0.1 Branch 5：真实 LLM Client 接入。开始前必须阅读 AGENTS.md 和 .supports/ 下的所有规范文档。
+
+当前分支已经由 Codex 基于 develop 创建：
+feature/v0.1-real-llm-client
+
+目标：
+让运行时可以通过配置使用真实 LLM，不再总是使用 MockLLMClient；但单元测试仍必须 mock 外部 HTTP，不得依赖真实 KEY 或真实外网。
+
+硬性约束：
+1. 紫微排盘仍由 ZiweiChartEngine 完成。当前仍是 source="stub" 的排盘结果，LLM 不得参与排盘、历法换算、星曜落宫、四化、大限或流年计算。
+2. 所有真实模型调用必须通过 LLMClient 抽象，不得在 API 层、Service 层或业务逻辑中散落第三方 SDK/HTTP 调用。
+3. 不得提交真实 .env、API Key、token 或本机私密配置。
+4. 如果运行时使用 httpx，请把 httpx 放入运行时依赖，并同步提交 pyproject.toml 和 uv.lock。
+5. Prompt 仍使用 app/prompts/ 下的独立文件。
+6. 报告必须包含免责声明；如果真实 LLM 输出缺失免责声明，Agent 必须兜底补齐。
+7. 错误要清晰：401/403、5xx、超时、网络错误、响应缺少文本都要转成项目内 LLMClientError 或等价异常。
+
+建议实现：
+- 新增 app/llm/openai_compatible.py。
+- 在 app/core/config.py 增加：
+  - llm_provider
+  - llm_wire_api
+  - llm_timeout_seconds
+- 在 app/api/dependencies.py 根据 settings 选择 MockLLMClient 或 OpenAICompatibleLLMClient。
+- 支持 MINGMAX_LLM_WIRE_API=chat_completions 和/或 responses；如果只做一个，优先 chat_completions，并在文档说明。
+- 更新 .env.example，不填真实 KEY。
+- 更新 .supports/DECISIONS.md 和 .supports/API_SPEC.md 中的真实 LLM 接入约束。
+
+测试要求：
+- 单元测试 mock HTTP，不真实请求外部 LLM。
+- 覆盖成功、鉴权失败、服务端错误、超时/网络错误、响应缺少文本。
+- 覆盖 provider 选择逻辑。
+- 覆盖 API 在 mock HTTP 下能返回真实 Client 解析出的内容。
+
+手动集成验证：
+- 你可以使用本机已配置的真实 KEY 做一次手动调用。
+- 只记录脱敏配置、请求命令、响应摘要、是否包含免责声明。
+- 不要把 KEY 或完整敏感响应写入仓库。
+
+完成后请输出：
+- 分支名；
+- commit 列表；
+- 修改文件列表；
+- 关键架构决策；
+- 单元测试命令和结果；
+- 手动真实 LLM 验证命令和脱敏结果；
 - 未完成事项或风险。
 
 Codex 只负责后续 code review 和验收，不参与测试执行。
