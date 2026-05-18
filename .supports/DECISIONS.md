@@ -69,7 +69,7 @@ BirthInfo -> ZiweiChartEngine -> RawChart -> NormalizedChart -> ZiweiAnalysisAge
 ### D010: 真实 LLM 接入必须可配置且仍经过 LLMClient 抽象
 
 - 状态：已确认
-- 决策：Branch 5 开始支持真实 LLM 调用。运行时通过 `MINGMAX_LLM_PROVIDER` 选择 `mock` 或 `openai_compatible`，真实调用必须经过 `LLMClient` 抽象。
+- 决策：Branch 5 开始支持真实 LLM 调用。运行时通过 `MINGMAX_LLM_PROVIDER` 选择 `mock` 或 `openai_compatible`，真实调用必须经过 `LLMClient` 抽象。`openai_compatible` 支持 `MINGMAX_LLM_WIRE_API=chat_completions` 和 `responses`。
 - 影响：API 层、Service 层和 Agent 以外的业务逻辑不得直接调用第三方模型 SDK 或 HTTP API；单元测试不得真实访问外部 LLM。
 
 ### D011: 真实 LLM 只负责解释，不负责排盘
@@ -83,6 +83,12 @@ BirthInfo -> ZiweiChartEngine -> RawChart -> NormalizedChart -> ZiweiAnalysisAge
 - 状态：已确认
 - 决策：`.env.example` 可以记录变量名和空值示例，真实 `.env`、API Key、token、本机私密 base URL 不得提交。
 - 影响：Claude 进行手动真实 LLM 验证时，只能记录脱敏配置和响应摘要。
+
+### D013: LLM 配置错误不得静默降级
+
+- 状态：已确认
+- 决策：未知 `MINGMAX_LLM_PROVIDER`、未知 `MINGMAX_LLM_WIRE_API` 或真实 Client 缺少必要配置时必须抛出清晰错误，并由 API 映射为 `LLM_CLIENT_FAILED`。
+- 影响：生产环境配置拼写错误不会伪装为 MockLLMClient 成功响应。
 
 ## 待确认决策
 

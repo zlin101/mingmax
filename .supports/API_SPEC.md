@@ -134,6 +134,9 @@ MINGMAX_LLM_TIMEOUT_SECONDS=30
 
 - `MINGMAX_LLM_PROVIDER=mock` 时使用 Mock LLM，便于本地无 KEY 开发。
 - `MINGMAX_LLM_PROVIDER=openai_compatible` 时使用真实 OpenAI-compatible Client。
+- `MINGMAX_LLM_WIRE_API=chat_completions` 时调用 `POST {base_url}/chat/completions`。
+- `MINGMAX_LLM_WIRE_API=responses` 时调用 `POST {base_url}/responses`。
+- 未知 provider、未知 wire API 或真实 Client 缺少 API Key/base URL/model 时必须返回清晰配置错误，不得静默退回 mock。
 - 单元测试必须 mock 外部 HTTP，不得依赖真实 KEY 或真实外网。
 - 手动集成验证可以真实调用已配置 KEY，但只能记录脱敏配置和响应摘要。
 - 真实 LLM 失败时不得返回伪成功分析，应返回清晰错误。

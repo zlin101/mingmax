@@ -1,23 +1,37 @@
+import pytest
 from httpx import AsyncClient
+
+from app.api.dependencies import get_analysis_service
+from app.llm.openai_compatible import LLMClientError
+from app.main import app
+
+
+class FailingLLMAnalysisService:
+    async def analyze(self, birth_info: object, options: object) -> object:
+        raise LLMClientError("LLM request failed")
+
+
+def _valid_request_payload() -> dict[str, object]:
+    return {
+        "birth": {
+            "calendar_type": "solar",
+            "birth_datetime": "1995-05-17T08:30:00+08:00",
+            "gender": "female",
+            "birth_place": "Shanghai, China",
+            "timezone": "Asia/Shanghai",
+        },
+        "options": {
+            "themes": ["career"],
+            "include_followup_questions": True,
+            "include_markdown_report": True,
+        },
+    }
 
 
 async def test_analyze_valid_request(client: AsyncClient) -> None:
     response = await client.post(
         "/api/v1/ziwei/analyze",
-        json={
-            "birth": {
-                "calendar_type": "solar",
-                "birth_datetime": "1995-05-17T08:30:00+08:00",
-                "gender": "female",
-                "birth_place": "Shanghai, China",
-                "timezone": "Asia/Shanghai",
-            },
-            "options": {
-                "themes": ["career"],
-                "include_followup_questions": True,
-                "include_markdown_report": True,
-            },
-        },
+        json=_valid_request_payload(),
     )
 
     assert response.status_code == 200
@@ -77,3 +91,30 @@ async def test_analyze_lunar_calendar(client: AsyncClient) -> None:
     data = response.json()
     assert data["detail"]["error"]["code"] == "UNSUPPORTED_CALENDAR_TYPE"
     assert "Unsupported calendar type: lunar" in data["detail"]["error"]["message"]
+
+
+async def test_analyze_llm_client_failure_returns_error_response(client: AsyncClient) -> None:
+    app.dependency_overrides[get_analysis_service] = lambda: FailingLLMAnalysisService()
+    try:
+        response = await client.post("/api/v1/ziwei/analyze", json=_valid_request_payload())
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 500
+    data = response.json()
+    assert data["detail"]["error"]["code"] == "LLM_CLIENT_FAILED"
+    assert data["detail"]["error"]["message"] == "LLM request failed"
+
+
+async def test_analyze_llm_config_failure_returns_error_response(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MINGMAX_LLM_PROVIDER", "typo")
+
+    response = await client.post("/api/v1/ziwei/analyze", json=_valid_request_payload())
+
+    assert response.status_code == 500
+    data = response.json()
+    assert data["detail"]["error"]["code"] == "LLM_CLIENT_FAILED"
+    assert "Unsupported LLM provider" in data["detail"]["error"]["message"]

@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     llm_model: str = "mock"
     llm_api_key: str = ""
     llm_base_url: str = ""
+    llm_wire_api: str = "chat_completions"
     llm_timeout_seconds: int = 30
 
     model_config = {"env_prefix": "MINGMAX_", "env_file": ".env", "extra": "ignore"}

@@ -580,20 +580,25 @@ uv run pytest --cov=app  # 99% coverage, 239 statements, 2 miss
 
 **修改文件列表：**
 
-- `app/llm/openai_compatible.py` — OpenAICompatibleLLMClient + LLMClientError
-- `app/core/config.py` — 新增 llm_provider、llm_timeout_seconds 配置
+- `app/llm/openai_compatible.py` — OpenAICompatibleLLMClient + LLMClientError/LLMClientConfigError，支持 chat_completions 和 responses
+- `app/core/config.py` — 新增 llm_provider、llm_wire_api、llm_timeout_seconds 配置
 - `app/api/dependencies.py` — 根据 MINGMAX_LLM_PROVIDER 选择 Mock/Real Client
-- `.env.example` — 新增 MINGMAX_LLM_PROVIDER、LLM_TIMEOUT_SECONDS
+- `app/api/errors.py` — 统一 API 错误响应构造
+- `app/api/v1/routes_analysis.py` — 将 LLMClientError 映射为 LLM_CLIENT_FAILED 错误响应
+- `.env.example` — 新增 MINGMAX_LLM_PROVIDER、LLM_WIRE_API、LLM_TIMEOUT_SECONDS
 - `pyproject.toml` — httpx 从 dev 移至运行时依赖
 - `uv.lock` — 依赖锁文件更新
-- `tests/test_real_llm_client.py` — 真实 Client 单元测试（9 项：成功/鉴权/服务器/超时/网络/缺内容）
-- `tests/test_dependencies.py` — Provider 选择测试（2 项）
+- `tests/test_real_llm_client.py` — 真实 Client 单元测试（成功/鉴权/服务器/超时/网络/缺内容/非法 JSON/配置错误/responses）
+- `tests/test_dependencies.py` — Provider 选择与未知 provider 测试
+- `tests/test_api_analysis.py` — LLM_CLIENT_FAILED 运行时错误与依赖装配配置错误响应测试
+- `tests/conftest.py` — 测试默认强制使用 mock provider，避免本机 `.env` 触发真实外部调用
 
 **关键架构决策：**
 
-- OpenAICompatibleLLMClient 通过 httpx 调用 `/chat/completions`，不依赖 openai SDK
+- OpenAICompatibleLLMClient 通过 httpx 调用 `/chat/completions` 或 `/responses`，不依赖 openai SDK
 - LLMClientError 统一包装所有错误类型（auth/server/timeout/network/empty）
 - `MINGMAX_LLM_PROVIDER=mock` 使用 MockLLMClient，`openai_compatible` 使用真实 Client
+- 未知 provider、未知 wire API 或真实 Client 缺少必要配置时不静默退回 mock
 - 超时通过 `MINGMAX_LLM_TIMEOUT_SECONDS` 可配置，默认 30s
 - 所有调用仍经 LLMClient 抽象，API 层和 Service 层不感知具体实现
 
@@ -635,7 +640,7 @@ uv run pytest --cov=app  # 99% coverage, 290 statements, 3 miss
 
 **未完成事项或风险：**
 
-- 仅实现 `chat_completions` wire API，`responses` API 暂未支持（按任务优先级）
+- 已支持 `chat_completions` 与 `responses` wire API；真实网关兼容性仍需按所用 provider 手动验证
 - 默认超时 30s 可能不够，生产环境建议 120s+，已在 .env.example 中注释说明
 - chart.source 仍为 `stub`，LLM 会如实识别并说明数据不足
 
