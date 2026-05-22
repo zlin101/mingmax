@@ -28,6 +28,12 @@ def _parse_json_object(raw: str) -> dict:
     return result
 
 
+def _require_fields(parsed: dict, fields: list[str], label: str) -> None:
+    missing = [f for f in fields if f not in parsed]
+    if missing:
+        raise LLMOutputParseError(f"{label} missing required fields: {', '.join(missing)}")
+
+
 def _parse_json_array(raw: str) -> list:
     text = raw.strip()
     if text.startswith("```"):
@@ -54,13 +60,16 @@ class ZiweiAnalysisAgent:
         context = chart.model_dump_json()
         raw = await self._llm.generate(prompt=prompt, context=context)
         parsed = _parse_json_object(raw)
+        _require_fields(
+            parsed, ["summary", "strong_signals", "weak_hypotheses", "cross_checks", "safety_note"], "analysis"
+        )
         try:
             return AnalysisResult(
-                summary=parsed.get("summary", ""),
-                strong_signals=parsed.get("strong_signals", []),
-                weak_hypotheses=parsed.get("weak_hypotheses", []),
-                cross_checks=parsed.get("cross_checks", []),
-                safety_note=parsed.get("safety_note"),
+                summary=parsed["summary"],
+                strong_signals=parsed["strong_signals"],
+                weak_hypotheses=parsed["weak_hypotheses"],
+                cross_checks=parsed["cross_checks"],
+                safety_note=parsed["safety_note"],
             )
         except Exception as e:
             raise LLMOutputParseError(f"Failed to parse analysis result: {e}") from e
@@ -73,14 +82,19 @@ class ZiweiAnalysisAgent:
             themed_prompt = f"{prompt}\n\n分析主题：{theme}"
             raw = await self._llm.generate(prompt=themed_prompt, context=context)
             parsed = _parse_json_object(raw)
+            _require_fields(
+                parsed,
+                ["theme", "observations", "supporting_evidence", "uncertainty", "followup_questions"],
+                f"theme analysis for '{theme}'",
+            )
             try:
                 results.append(
                     ThemeAnalysis(
-                        theme=parsed.get("theme", theme),
-                        observations=parsed.get("observations", []),
-                        supporting_evidence=parsed.get("supporting_evidence", []),
-                        uncertainty=parsed.get("uncertainty"),
-                        followup_questions=parsed.get("followup_questions", []),
+                        theme=parsed["theme"],
+                        observations=parsed["observations"],
+                        supporting_evidence=parsed["supporting_evidence"],
+                        uncertainty=parsed["uncertainty"],
+                        followup_questions=parsed["followup_questions"],
                     )
                 )
             except Exception as e:
@@ -96,11 +110,12 @@ class ZiweiAnalysisAgent:
         for i, item in enumerate(parsed):
             if not isinstance(item, dict):
                 raise LLMOutputParseError(f"Followup question {i} is not a JSON object")
+            _require_fields(item, ["question", "reason"], f"followup question {i}")
             try:
                 results.append(
                     FollowupQuestion(
-                        question=item.get("question", ""),
-                        reason=item.get("reason", ""),
+                        question=item["question"],
+                        reason=item["reason"],
                         related_chart_factors=item.get("related_chart_factors", []),
                     )
                 )
