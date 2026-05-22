@@ -105,7 +105,7 @@ Branch 1-6 允许使用可预测的 Engine stub 和 Mock/真实 LLM Client 建�
 
 ### 真太阳时计算
 
-`iztro_provider.py` 中的 `_true_solar_time_offset()` 使用均时差近似表和经度校正计算真太阳时偏移。`_infer_longitude_from_tz()` 从时区 UTC offset 推算近似经度作为默认值。
+`time_calibration.py` 中的 `true_solar_time_offset()` 使用均时差近似公式和经度校正计算真太阳时偏移。`infer_longitude_from_timezone()` 从时区 UTC offset 推算近似经度作为默认值。`iztro_provider.py` 只消费校正结果，不持有时间校正常量或公式。
 
 ### 字段保真
 

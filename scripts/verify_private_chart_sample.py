@@ -3,7 +3,7 @@ import re
 import sys
 from datetime import datetime, timedelta, timezone
 
-from app.engines.chart_diff import ExpectedChartSnapshot, ExpectedPalaceSnapshot, diff_charts
+from app.engines.chart_diff import ChartDiffResult, ExpectedChartSnapshot, ExpectedPalaceSnapshot, diff_charts
 from app.engines.chart_normalizer import ChartNormalizer
 from app.engines.ziwei_chart_engine import ZiweiChartEngine
 from app.schemas.birth import BirthInfo
@@ -63,11 +63,20 @@ def _parse_reference(text: str) -> dict:
 
         result["palaces"].append(palace_entry)
 
-    for mutagen, field in [("生年禄", "hua_lu"), ("生年权", "hua_quan"), ("生年科", "hua_ke"), ("生年忌", "hua_ji")]:
-        pattern = re.compile(r"(\S+?)\[[^\]]*\]" + re.escape(mutagen), re.MULTILINE)
-        m = pattern.search(text)
-        if m:
-            result[field] = m.group(1)
+    mutagen_fields = {"生年禄": "hua_lu", "生年权": "hua_quan", "生年科": "hua_ke", "生年忌": "hua_ji"}
+    for line in text.splitlines():
+        if "星" not in line:
+            continue
+        for segment in line.split(","):
+            star_match = re.search(r"([\u4e00-\u9fff]+)(?:\[[^\]]+\])+", segment)
+            if not star_match:
+                continue
+            star_name = star_match.group(1)
+            markers = re.findall(r"\[([^\]]+)\]", segment)
+            for marker in markers:
+                field = mutagen_fields.get(marker)
+                if field:
+                    result[field] = star_name
 
     return result
 
@@ -91,6 +100,10 @@ def _build_expected(ref: dict) -> ExpectedChartSnapshot:
         hua_ke=ref.get("hua_ke"),
         hua_ji=ref.get("hua_ji"),
     )
+
+
+def _count_mismatched_palaces(result: ChartDiffResult) -> int:
+    return len({d.palace_index for d in result.diffs if d.palace_index >= 0})
 
 
 def main() -> None:
@@ -131,8 +144,8 @@ def main() -> None:
     result = diff_charts(normalized, expected)
 
     compared = min(len(normalized.palaces), expected.palace_count)
-    exact = compared - len([d for d in result.diffs if d.palace_index >= 0])
-    mismatched = compared - exact
+    mismatched = _count_mismatched_palaces(result)
+    exact = max(0, compared - mismatched)
 
     print(f"summary={compared} palaces compared, {exact} exact, {mismatched} mismatched")
     print(f"errors={len(result.errors)}")

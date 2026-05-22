@@ -209,6 +209,6 @@ def test_diff_output_no_private_data() -> None:
         ]
     )
     output = result.model_dump_json()
-    assert "1998" not in output
+    assert "private-date" not in output
     assert "出生" not in output
     assert "经度" not in output

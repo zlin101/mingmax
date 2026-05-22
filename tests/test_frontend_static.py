@@ -234,22 +234,22 @@ setTimeout(function () {
 
 def test_frontend_autofills_longitude_from_city() -> None:
     _run_app_js("""
-elements["birth_place"].value = "成都";
-elements["birth_place"]._handlers["input"]();
-if (Number(elements["longitude"].value) !== 104.067) {
-  throw new Error("expected longitude 104.067 for 成都, got: " + elements["longitude"].value);
-}
-""")
+  elements["birth_place"].value = "广州";
+  elements["birth_place"]._handlers["input"]();
+  if (Number(elements["longitude"].value) !== 113.264) {
+    throw new Error("expected longitude 113.264 for 广州, got: " + elements["longitude"].value);
+  }
+  """)
 
 
 def test_frontend_autofills_longitude_partial_match() -> None:
     _run_app_js("""
-elements["birth_place"].value = "成都市武侯区";
-elements["birth_place"]._handlers["input"]();
-if (Number(elements["longitude"].value) !== 104.067) {
-  throw new Error("expected longitude 104.067 for partial match, got: " + elements["longitude"].value);
-}
-""")
+  elements["birth_place"].value = "广州市天河区";
+  elements["birth_place"]._handlers["input"]();
+  if (Number(elements["longitude"].value) !== 113.264) {
+    throw new Error("expected longitude 113.264 for partial match, got: " + elements["longitude"].value);
+  }
+  """)
 
 
 def test_frontend_no_autofill_for_unknown_city() -> None:

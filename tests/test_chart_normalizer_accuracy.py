@@ -13,8 +13,8 @@ def _raw_chart() -> RawChart:
             name="命宫",
             heavenly_stem="丁",
             earthly_branch="巳",
-            stars=[_star("廉贞", "major"), _star("贪狼", "major"), _star("文昌", "minor")],
-            four_hua=FourHua(hua_lu="贪狼"),
+            stars=[_star("紫微", "major"), _star("天府", "major"), _star("文昌", "minor")],
+            four_hua=FourHua(hua_lu="紫微"),
             is_body_palace=False,
         ),
         Palace(
@@ -40,7 +40,7 @@ def _raw_chart() -> RawChart:
         chart_id="test-raw",
         birth_info_snapshot={},
         palaces=palaces,
-        four_hua=FourHua(hua_lu="贪狼", hua_quan="太阴", hua_ke="右弼", hua_ji="天机"),
+        four_hua=FourHua(hua_lu="紫微", hua_quan="太阴", hua_ke="右弼", hua_ji="天机"),
     )
 
 
