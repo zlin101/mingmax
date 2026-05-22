@@ -32,6 +32,12 @@ app/
     analysis.py
   services/
     analysis_service.py
+  web/
+    __init__.py
+    static/
+      index.html
+      styles.css
+      app.js
 tests/
   conftest.py
   test_birth_schema.py
@@ -41,6 +47,7 @@ tests/
   test_api_analysis.py
   test_prompt_loading.py
   test_mock_llm.py
+  test_frontend_static.py
 ```
 
 ## 模块职责
@@ -51,6 +58,7 @@ tests/
 - Agent 层：组织 LLM 分析流程、Prompt Pipeline、追问与校准，不负责排盘。
 - LLM 层：统一模型调用抽象，提供真实 Client 和 Mock Client。
 - Schema 层：定义请求、响应、命盘、分析结果等结构化模型。
+- Web 层：静态前端文件，通过 FastAPI 挂载，只调用后端 API，不直接参与排盘或 LLM 调用。
 - Prompt 层：集中管理 Prompt 模板和输出约束。
 
 ## 数据流

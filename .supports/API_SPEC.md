@@ -141,3 +141,19 @@ MINGMAX_LLM_TIMEOUT_SECONDS=30
 - 手动集成验证可以真实调用已配置 KEY，但只能记录脱敏配置和响应摘要。
 - 真实 LLM 失败时不得返回伪成功分析，应返回清晰错误。
 - `chart.source` 仍反映排盘来源；当前真实 LLM 接入不等于真实紫微排盘。
+
+## 静态前端路由
+
+```text
+GET /                           -> 307 重定向到 /static/index.html
+GET /static/index.html          -> 前端入口页
+GET /static/styles.css          -> 样式表
+GET /static/app.js              -> 前端逻辑
+```
+
+约束：
+
+- 前端只通过 `fetch("/api/v1/ziwei/analyze")` 调用后端 API，不绕过 API 层。
+- 前端不引入 React、Vue、Vite、Tailwind 或复杂前端框架。
+- 页面必须明确标注当前排盘结果为 stub。
+- 页面必须展示免责声明。
