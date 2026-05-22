@@ -25,7 +25,9 @@ function makeElement(value) {
       remove: function () {},
     },
     appendChild: function () {},
-    addEventListener: function (_event, handler) {
+    _handlers: {},
+    addEventListener: function (event, handler) {
+      this._handlers[event] = handler;
       this.handler = handler;
     },
   };
@@ -227,6 +229,36 @@ setTimeout(function () {
     throw new Error("unexpected error message: " + elements["error-message"].textContent);
   }
 }, 0);
+""")
+
+
+def test_frontend_autofills_longitude_from_city() -> None:
+    _run_app_js("""
+elements["birth_place"].value = "成都";
+elements["birth_place"]._handlers["input"]();
+if (Number(elements["longitude"].value) !== 104.067) {
+  throw new Error("expected longitude 104.067 for 成都, got: " + elements["longitude"].value);
+}
+""")
+
+
+def test_frontend_autofills_longitude_partial_match() -> None:
+    _run_app_js("""
+elements["birth_place"].value = "成都市武侯区";
+elements["birth_place"]._handlers["input"]();
+if (Number(elements["longitude"].value) !== 104.067) {
+  throw new Error("expected longitude 104.067 for partial match, got: " + elements["longitude"].value);
+}
+""")
+
+
+def test_frontend_no_autofill_for_unknown_city() -> None:
+    _run_app_js("""
+elements["birth_place"].value = "某个不存在的城市";
+elements["birth_place"]._handlers["input"]();
+if (elements["longitude"].value !== "" && elements["longitude"].value !== undefined) {
+  throw new Error("expected empty longitude for unknown city, got: " + elements["longitude"].value);
+}
 """)
 
 
