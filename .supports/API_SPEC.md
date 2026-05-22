@@ -19,7 +19,8 @@ API 层只负责请求校验、依赖注入和响应封装，不直接调用 LLM
     "birth_datetime": "1995-05-17T08:30:00+08:00",
     "gender": "female",
     "birth_place": "Shanghai, China",
-    "timezone": "Asia/Shanghai"
+    "timezone": "Asia/Shanghai",
+    "longitude": 121.47
   },
   "options": {
     "themes": ["career", "relationship"],
@@ -51,6 +52,8 @@ unknown
 Branch 7 接入 `iztro-py` 后，真实排盘 provider 只支持 `male` / `female`，分别映射为 `iztro-py` 的 `男` / `女`。`unknown` 必须返回清晰错误，不得静默按任一性别处理。
 
 `timezone` 必须使用 IANA 时区名称，例如 `Asia/Shanghai`。如果请求已提供带 offset 的 `birth_datetime`，仍应保留 `timezone` 用于后续历法策略校准。
+
+`longitude` 为可选字段，单位为东经度数（例如 `104.067`）。如果提供，provider 将计算真太阳时校正，用于确定出生时辰；如果不提供，则使用 `birth_datetime` 在 `timezone` 对应地区的钟表小时。
 
 `options.themes` v0.1 建议可选值：
 

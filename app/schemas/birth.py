@@ -21,6 +21,7 @@ class BirthInfo(BaseModel):
     gender: Gender
     birth_place: str = Field(min_length=1, max_length=200)
     timezone: str = Field(min_length=1, max_length=100)
+    longitude: float | None = None
 
     @field_validator("birth_datetime")
     @classmethod

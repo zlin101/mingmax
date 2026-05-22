@@ -172,6 +172,20 @@ Claude 负责开发和测试执行。Codex 负责 code review 和验收，不参
 - 输出免责声明存在性；
 - 异常分支和边界输入。
 
+## 本地私密样本验证
+
+使用 `scripts/verify_private_chart_sample.py` 对本地私密验证文件做排盘准确性对比：
+
+```bash
+uv run python scripts/verify_private_chart_sample.py .supports/TEST_INFO_EVA.md
+```
+
+隐私要求：
+
+- `.supports/TEST_INFO_EVA.md` 必须保持未跟踪，不得 `git add`（已在 `.gitignore` 中）。
+- 输出只允许脱敏差异统计，不得包含真实出生日期、地点、经度、完整宫位文本或任何可识别信息。
+- 自动化测试只使用合成 fixture，不使用私密样本。
+
 ## Code Review 验收口径
 
 Codex review 时优先检查：
