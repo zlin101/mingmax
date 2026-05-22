@@ -6,9 +6,11 @@
 3. 每个主题判断都要说明证据来源和不确定性。
 4. 如证据不足，必须明确说明"当前结构不足以支持强结论"。
 
-输出格式：
-- theme: 主题名称
-- observations: 观察点
-- supporting_evidence: 支撑依据
-- uncertainty: 不确定性
-- followup_questions: 可追问问题
+输出格式：只输出 JSON object，不要输出 Markdown，不要使用代码块包裹。
+{
+  "theme": "主题名称",
+  "observations": ["观察点"],
+  "supporting_evidence": ["支撑依据"],
+  "uncertainty": "不确定性说明",
+  "followup_questions": ["可追问问题"]
+}

@@ -117,3 +117,16 @@ BirthInfo -> ZiweiChartEngine -> RawChart -> NormalizedChart -> ZiweiAnalysisAge
 
 - 选项：OpenAI-compatible `chat_completions`、OpenAI-compatible `responses`、本地兼容网关。
 - 要求：具体 provider 可由本机环境配置决定；代码只依赖项目内 `LLMClient` 抽象和配置项。
+
+### D017: Branch 8 LLM 输出必须通过 JSON 契约解析
+
+- 状态：已确认
+- 决策：基础分析、主题分析和追问问题等 LLM 输出必须按项目定义的 JSON 契约解析为内部 Schema；不得把模型返回的整段 Markdown 直接塞入 `observations`、`question` 等结构字段。Agent 负责解析，Service 只编排。
+- 影响：模型返回非 JSON、空内容、缺少必填字段、字段类型错误时，应返回 `LLM_OUTPUT_INVALID`（HTTP 502），不能静默拼装伪成功结果。
+- 清理：Service 不再硬编码 `uncertainty="mock"` 或 `reason="mock"`；MockLLMClient 返回符合 JSON 契约的固定内容。
+
+### D018: Prompt 必须显式要求 JSON-only 输出
+
+- 状态：已确认
+- 决策：基础分析、主题分析和追问问题的 Prompt 必须明确要求只输出 JSON（object 或 array），不要 Markdown、不要代码块包裹。
+- 影响：Agent 解析层可剥离常见模型误输出的代码块包裹，但 Prompt 侧应尽量消除这种需求。

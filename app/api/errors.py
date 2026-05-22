@@ -12,3 +12,16 @@ def llm_client_failed_exception(error: Exception) -> HTTPException:
             }
         },
     )
+
+
+def llm_output_invalid_exception(error: Exception) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        detail={
+            "error": {
+                "code": "LLM_OUTPUT_INVALID",
+                "message": str(error),
+                "details": [],
+            }
+        },
+    )

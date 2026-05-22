@@ -40,7 +40,10 @@ async def test_service_calls_mock_llm() -> None:
     service = _service()
     result = await service.analyze(_birth_info(), AnalysisOptions())
 
-    assert "紫微斗数分析报告" in result.analysis.summary
+    assert isinstance(result.analysis.summary, str)
+    assert len(result.analysis.summary) > 0
+    assert len(result.analysis.strong_signals) > 0
+    assert DISCLAIMER in result.analysis.safety_note
 
 
 async def test_service_includes_theme_analysis() -> None:
@@ -49,7 +52,7 @@ async def test_service_includes_theme_analysis() -> None:
 
     assert len(result.analysis.theme_analyses) == 1
     assert result.analysis.theme_analyses[0].theme == "career"
-    assert len(result.analysis.theme_analyses[0].observations) == 1
+    assert len(result.analysis.theme_analyses[0].observations) > 0
 
 
 async def test_service_report_contains_disclaimer() -> None:
@@ -65,6 +68,8 @@ async def test_service_followup_questions() -> None:
     result = await service.analyze(_birth_info(), AnalysisOptions(include_followup_questions=True))
 
     assert len(result.followup_questions) > 0
+    assert result.followup_questions[0].question
+    assert result.followup_questions[0].reason
 
 
 async def test_service_no_report_when_disabled() -> None:
@@ -72,3 +77,15 @@ async def test_service_no_report_when_disabled() -> None:
     result = await service.analyze(_birth_info(), AnalysisOptions(include_markdown_report=False))
 
     assert result.report_markdown is None
+
+
+async def test_service_analysis_has_no_mock_placeholders() -> None:
+    service = _service()
+    result = await service.analyze(_birth_info(), AnalysisOptions(themes=["career"], include_followup_questions=True))
+
+    assert result.analysis.strong_signals != []
+    for ta in result.analysis.theme_analyses:
+        assert ta.uncertainty is not None
+        assert ta.uncertainty != "mock"
+    for fq in result.followup_questions:
+        assert fq.reason != "mock"

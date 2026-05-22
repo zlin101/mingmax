@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 from httpx import AsyncClient
 
+from app.agents.ziwei_analysis_agent import LLMOutputParseError
 from app.api.dependencies import get_analysis_service
 from app.llm.openai_compatible import LLMClientError
 from app.main import app
@@ -11,6 +12,11 @@ from app.main import app
 class FailingLLMAnalysisService:
     async def analyze(self, birth_info: object, options: object) -> object:
         raise LLMClientError("LLM request failed")
+
+
+class BadOutputAnalysisService:
+    async def analyze(self, birth_info: object, options: object) -> object:
+        raise LLMOutputParseError("LLM output is not valid JSON")
 
 
 def _valid_request_payload() -> dict[str, object]:
@@ -158,3 +164,16 @@ async def test_analyze_llm_config_failure_returns_error_response(
 def test_api_routes_do_not_import_engine_providers() -> None:
     route_source = Path("app/api/v1/routes_analysis.py").read_text(encoding="utf-8")
     assert "app.engines.providers" not in route_source
+
+
+async def test_analyze_llm_output_invalid_returns_502(client: AsyncClient) -> None:
+    app.dependency_overrides[get_analysis_service] = lambda: BadOutputAnalysisService()
+    try:
+        response = await client.post("/api/v1/ziwei/analyze", json=_valid_request_payload())
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 502
+    data = response.json()
+    assert data["detail"]["error"]["code"] == "LLM_OUTPUT_INVALID"
+    assert "not valid JSON" in data["detail"]["error"]["message"]

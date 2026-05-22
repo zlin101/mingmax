@@ -14,10 +14,24 @@ def test_load_prompt_not_found() -> None:
         load_prompt("nonexistent_prompt")
 
 
-def test_ziwei_analysis_prompt_safety() -> None:
+def test_ziwei_analysis_prompt_requires_json() -> None:
     content = load_prompt("ziwei_analysis")
+    assert "JSON" in content
+    assert "不要输出 Markdown" in content or "不要使用代码块" in content
     assert "不得" in content
     assert "绝对化" in content
+
+
+def test_theme_analysis_prompt_requires_json() -> None:
+    content = load_prompt("theme_analysis")
+    assert "JSON" in content
+    assert "不要输出 Markdown" in content or "不要使用代码块" in content
+
+
+def test_followup_questions_prompt_requires_json_array() -> None:
+    content = load_prompt("followup_questions")
+    assert "JSON" in content
+    assert "不要输出 Markdown" in content or "不要使用代码块" in content
 
 
 def test_report_prompt_contains_disclaimer_requirement() -> None:
