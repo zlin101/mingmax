@@ -53,7 +53,7 @@ Branch 7 接入 `iztro-py` 后，真实排盘 provider 只支持 `male` / `femal
 
 `timezone` 必须使用 IANA 时区名称，例如 `Asia/Shanghai`。如果请求已提供带 offset 的 `birth_datetime`，仍应保留 `timezone` 用于后续历法策略校准。
 
-`longitude` 为可选字段，单位为东经度数（例如 `104.067`）。如果提供，provider 将计算真太阳时校正，用于确定出生时辰；如果不提供，则使用 `birth_datetime` 在 `timezone` 对应地区的钟表小时。
+`longitude` 为可选字段，单位为东经度数（例如 `104.067`）。默认始终进行真太阳时校正：如果提供 `longitude`，使用其精确值计算；如果不提供，从 `timezone` 的 UTC offset 推算近似经度（`longitude ≈ UTC_offset_hours × 15`），仅含均时差修正，不含经度偏差修正。对于出生地经度与标准时区经线偏差较大的地区（如中国西部），建议显式提供 `longitude` 以获得准确时辰。
 
 `options.themes` v0.1 建议可选值：
 

@@ -376,18 +376,23 @@ def _true_solar_time_offset(local_dt, longitude: float) -> timedelta:
     return timedelta(minutes=total_minutes)
 
 
+def _infer_longitude_from_tz(local_dt) -> float:
+    tz = local_dt.tzinfo
+    if tz is None:
+        return 120.0
+    offset_hours = tz.utcoffset(local_dt).total_seconds() / 3600
+    return offset_hours * 15
+
+
 def _get_local_date_hour(birth_info: BirthInfo) -> tuple[str, int]:
     tz = ZoneInfo(birth_info.timezone)
     local_dt = birth_info.birth_datetime.astimezone(tz)
 
-    if birth_info.longitude is not None:
-        tst_offset = _true_solar_time_offset(local_dt, birth_info.longitude)
-        true_solar_dt = local_dt + tst_offset
-        date_str = true_solar_dt.strftime("%Y-%m-%d")
-        hour = true_solar_dt.hour
-    else:
-        date_str = local_dt.strftime("%Y-%m-%d")
-        hour = local_dt.hour
+    longitude = birth_info.longitude if birth_info.longitude is not None else _infer_longitude_from_tz(local_dt)
+    tst_offset = _true_solar_time_offset(local_dt, longitude)
+    true_solar_dt = local_dt + tst_offset
+    date_str = true_solar_dt.strftime("%Y-%m-%d")
+    hour = true_solar_dt.hour
 
     return date_str, hour
 

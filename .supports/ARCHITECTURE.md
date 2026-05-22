@@ -99,12 +99,13 @@ Branch 1-6 允许使用可预测的 Engine stub 和 Mock/真实 LLM Client 建�
 
 `BirthInfo` 支持可选 `longitude` 字段（东经度数）：
 
-- 如果提供 `longitude`，provider 计算真太阳时校正，确定正确的出生时辰。
-- 如果不提供 `longitude`，provider 使用 `birth_datetime` 在 `timezone` 对应地区的钟表小时。
+- 默认始终进行真太阳时校正。
+- 如果提供 `longitude`，使用其精确值计算真太阳时偏移（均时差 + 经度校正）。
+- 如果不提供 `longitude`，从 `timezone` 的 UTC offset 推算近似经度（`longitude ≈ UTC_offset_hours × 15`），此时只有均时差修正，不含经度偏差修正。
 
 ### 真太阳时计算
 
-`iztro_provider.py` 中的 `_true_solar_time_offset()` 使用均时差近似表和经度校正计算真太阳时偏移。
+`iztro_provider.py` 中的 `_true_solar_time_offset()` 使用均时差近似表和经度校正计算真太阳时偏移。`_infer_longitude_from_tz()` 从时区 UTC offset 推算近似经度作为默认值。
 
 ### 字段保真
 
@@ -122,5 +123,5 @@ Branch 1-6 允许使用可预测的 Engine stub 和 Mock/真实 LLM Client 建�
 
 - 农历输入
 - `Gender.unknown`
-- 真太阳时自动校正（需手动提供 `longitude`）
+- 真太阳时精确校正（无 longitude 时使用时区推算近似经度，偏差可能较大）
 - 大限、流年、流月、流日、流时

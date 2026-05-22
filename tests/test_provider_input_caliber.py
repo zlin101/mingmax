@@ -23,10 +23,26 @@ def _birth(
     )
 
 
-def test_provider_without_longitude_uses_clock_hour() -> None:
+def test_provider_without_longitude_uses_inferred_true_solar_time() -> None:
     info = _birth(hour=11)
     date_str, hour = _get_local_date_hour(info)
-    assert hour == 11
+    # UTC+8 infers longitude=120.0; longitude correction = 0, EOT on Oct 23 is +13 min
+    # 11:00 + 13min = 11:13, still hour=11
+    assert hour == 11, "Inferred longitude (120.0E) with Oct 23 EOT (+13min) should keep hour=11"
+
+
+def test_provider_without_longitude_different_timezone() -> None:
+    info = BirthInfo(
+        calendar_type="solar",
+        birth_datetime=datetime(1998, 6, 15, 12, 0, tzinfo=timezone(timedelta(hours=5))),
+        gender=Gender.male,
+        birth_place="Test",
+        timezone="Asia/Karachi",
+    )
+    date_str, hour = _get_local_date_hour(info)
+    # UTC+5 infers longitude=75.0; June 15 EOT is near 0
+    # Correction = (75 - 75) * 4 = 0, so only EOT (~0 min)
+    assert hour == 12
 
 
 def test_provider_with_longitude_uses_true_solar_hour() -> None:

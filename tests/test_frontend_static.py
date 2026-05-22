@@ -52,6 +52,7 @@ const elements = {
   "birth_datetime": makeElement("1995-05-17T08:30"),
   "gender": makeElement("female"),
   "birth_place": makeElement("Shanghai, China"),
+  "longitude": makeElement(""),
   "timezone": makeElement("Asia/Shanghai"),
   "include_followup_questions": makeElement(),
   "include_markdown_report": makeElement(),

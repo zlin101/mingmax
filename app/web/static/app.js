@@ -90,6 +90,9 @@
         themes.push(cb.value);
       });
 
+    var longitudeEl = document.getElementById("longitude");
+    var longitude = longitudeEl.value.trim() ? parseFloat(longitudeEl.value) : undefined;
+
     return {
       birth: {
         calendar_type: document.getElementById("calendar_type").value,
@@ -98,6 +101,7 @@
         ),
         gender: document.getElementById("gender").value,
         birth_place: document.getElementById("birth_place").value.trim(),
+        longitude: longitude,
         timezone: document.getElementById("timezone").value.trim(),
       },
       options: {
