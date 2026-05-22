@@ -52,6 +52,11 @@ def test_invalid_datetime() -> None:
         BirthInfo(**_valid_birth_info(birth_datetime="not-a-date"))
 
 
+def test_birth_datetime_requires_timezone_offset() -> None:
+    with pytest.raises(ValidationError, match="timezone-aware"):
+        BirthInfo(**_valid_birth_info(birth_datetime="1995-05-17T08:30:00"))
+
+
 def test_invalid_timezone() -> None:
     with pytest.raises(ValidationError, match="Invalid IANA timezone"):
         BirthInfo(**_valid_birth_info(timezone="Invalid/Zone"))

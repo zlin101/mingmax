@@ -90,12 +90,28 @@ BirthInfo -> ZiweiChartEngine -> RawChart -> NormalizedChart -> ZiweiAnalysisAge
 - 决策：未知 `MINGMAX_LLM_PROVIDER`、未知 `MINGMAX_LLM_WIRE_API` 或真实 Client 缺少必要配置时必须抛出清晰错误，并由 API 映射为 `LLM_CLIENT_FAILED`。
 - 影响：生产环境配置拼写错误不会伪装为 MockLLMClient 成功响应。
 
+### D014: Branch 7 开始替换 Engine stub 为真实确定性排盘实现
+
+- 状态：已确认
+- 决策：Branch 7 的目标是让 `ZiweiChartEngine` 不再返回 `source = "stub"` 的空排盘，而是优先通过 `iztro-py` 适配层返回真实、确定性的紫微排盘结构。
+- 来源：旧项目 `/home/liam/ideas/mingmind/agents/ziwei_agent.py` 已使用 `from iztro_py import astro`，依赖名为 `iztro-py>=0.3.4,<1`。
+- 约束：
+  - LLM 仍不得参与排盘、历法换算、安星、定宫、四化、大限或流年计算；
+  - `iztro-py` 必须封装在 Engine/Provider 层，不得泄漏到 API、Service、Agent 或 LLM 层；
+  - 引入 `iztro-py` 必须使用 `uv add "iztro-py>=0.3.4,<1"` 管理，并提交 `pyproject.toml` 与 `uv.lock`；
+  - `iztro-py` 旧项目用法为 `astro.by_solar_hour(solar_date, hour, gender)`，其中 `gender` 只支持 `男` / `女`；当前 `Gender.unknown` 应返回清晰不支持错误或等价错误，不得静默降级为任一性别；
+  - 当前 v0.1 先使用出生地时区下的本地日期与小时，不实现真太阳时校正；如后续需要真太阳时，应作为独立任务处理；
+  - `iztro-py` metadata 标注 Python 3.8-3.12，但旧项目 Python 3.13 环境可安装；mingmax 要求 Python >=3.14，因此 Branch 7 必须通过 `uv add` 和完整测试验证 Python 3.14 兼容性；
+  - 若 v0.1 真实引擎只支持部分规则，必须在 `.supports/ARCHITECTURE.md`、`.supports/API_SPEC.md` 或 `.supports/TASKS.md` 中记录支持范围和未支持边界。
+- 影响：前端和 API 响应不得继续固定暗示当前一定是 stub；应根据 `chart.source` 动态展示排盘来源。
+
 ## 待确认决策
 
 ### P001: 紫微排盘底层实现来源
 
 - 选项：自研最小规则引擎、封装第三方库、先以内部接口 + fixture stub 建立闭环。
-- 建议：v0.1 第一阶段先定义 `ZiweiChartEngine` 接口和测试替身，避免在架构未稳定时绑定第三方库。
+- 当前状态：Branch 1-6 已完成接口和测试替身闭环；Branch 7 开始进入真实确定性排盘实现阶段。
+- 结论：优先采用旧项目已验证过的 `iztro-py>=0.3.4,<1`，通过内部 provider 适配到当前 `RawChart` / `NormalizedChart` 结构；仅当 Python 3.14 兼容性或输出质量验证失败时，再退回 v0.1 最小内部规则引擎。
 
 ### P002: 真实 LLM Provider 细节
 

@@ -29,13 +29,21 @@ header p {
   font-size: 14px;
 }
 
-#stub-notice {
-  background: #fff3cd;
-  border: 1px solid #ffc107;
+#source-notice {
   border-radius: 4px;
   padding: 12px 16px;
   margin-bottom: 24px;
   font-size: 14px;
+}
+
+.stub-notice {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+}
+
+.source-notice {
+  background: #d4edda;
+  border: 1px solid #28a745;
 }
 
 fieldset {

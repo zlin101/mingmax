@@ -48,6 +48,8 @@ female
 unknown
 ```
 
+Branch 7 接入 `iztro-py` 后，真实排盘 provider 只支持 `male` / `female`，分别映射为 `iztro-py` 的 `男` / `女`。`unknown` 必须返回清晰错误，不得静默按任一性别处理。
+
 `timezone` 必须使用 IANA 时区名称，例如 `Asia/Shanghai`。如果请求已提供带 offset 的 `birth_datetime`，仍应保留 `timezone` 用于后续历法策略校准。
 
 `options.themes` v0.1 建议可选值：
@@ -64,6 +66,7 @@ self_understanding
 {
   "chart": {
     "chart_id": "sample-chart-id",
+    "source": "iztro_py",
     "summary": "Normalized ziwei chart summary",
     "palaces": []
   },
@@ -114,6 +117,8 @@ self_understanding
 - 响应必须可 JSON 序列化。
 - `report_markdown` 必须包含免责声明。
 - 单元测试不得真实调用外部 LLM API。
+- Branch 7 后 `chart.source` 应反映真实排盘 provider，例如 `iztro_py`；只有实际使用 stub 时才允许返回 `stub`。
+- 当前 v0.1 真实排盘使用 `birth_datetime` 在 `timezone` 对应地区的本地日期与小时，不实现真太阳时校正。
 
 ## 真实 LLM 运行时配置
 
@@ -155,5 +160,5 @@ GET /static/app.js              -> 前端逻辑
 
 - 前端只通过 `fetch("/api/v1/ziwei/analyze")` 调用后端 API，不绕过 API 层。
 - 前端不引入 React、Vue、Vite、Tailwind 或复杂前端框架。
-- 页面必须明确标注当前排盘结果为 stub。
+- 页面必须根据 `chart.source` 动态展示排盘来源；只有 `chart.source = "stub"` 时才展示 stub 警告。
 - 页面必须展示免责声明。

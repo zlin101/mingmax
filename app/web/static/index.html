@@ -13,8 +13,8 @@
   </header>
 
   <main>
-    <section id="stub-notice">
-      <strong>注意：</strong>当前排盘结果为 stub 数据，仅用于验证分析流程，不代表真实紫微排盘已完成。
+    <section id="source-notice" class="hidden">
+      <strong>排盘来源：</strong><span id="source-text"></span>
     </section>
 
     <form id="analyze-form">
@@ -34,7 +34,7 @@
         <select id="gender" name="gender" required>
           <option value="male">男</option>
           <option value="female">女</option>
-          <option value="unknown">未知</option>
+          <option value="unknown" disabled>未知（真实排盘暂不支持）</option>
         </select>
 
         <label for="birth_place">出生地点</label>
