@@ -7,7 +7,7 @@ class ChartNormalizer:
         return NormalizedChart(
             chart_id=raw_chart.chart_id,
             source=raw_chart.source,
-            summary=f"Stub chart with {palace_count} palaces (source: {raw_chart.source})",
+            summary=f"Ziwei chart with {palace_count} palaces (source: {raw_chart.source})",
             palaces=raw_chart.palaces,
             four_hua=raw_chart.four_hua,
         )

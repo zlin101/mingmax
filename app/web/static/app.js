@@ -5,6 +5,8 @@
   var errorMessage = document.getElementById("error-message");
   var resultSection = document.getElementById("result-section");
   var submitBtn = document.getElementById("submit-btn");
+  var sourceNotice = document.getElementById("source-notice");
+  var sourceText = document.getElementById("source-text");
 
   var chartInfo = document.getElementById("chart-info");
   var analysisSummary = document.getElementById("analysis-summary");
@@ -110,11 +112,21 @@
 
   function renderResult(data) {
     var chart = data.chart || {};
+    var source = chart.source || "unknown";
+
+    sourceNotice.className = source === "stub" ? "stub-notice" : "source-notice";
+    if (source === "stub") {
+      sourceText.textContent = "当前排盘结果为 stub 数据，仅用于验证分析流程，不代表真实紫微排盘已完成。";
+    } else {
+      sourceText.textContent = source;
+    }
+    show(sourceNotice);
+
     chartInfo.textContent =
       "Chart ID: " +
       (chart.chart_id || "N/A") +
       "\n来源: " +
-      (chart.source || "N/A") +
+      source +
       "\n摘要: " +
       (chart.summary || "N/A");
 

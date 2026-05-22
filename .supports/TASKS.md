@@ -10,7 +10,7 @@
 
 ## 分支计划
 
-第一阶段拆分为 6 个可独立 review 和验收的分支，按顺序执行。
+第一阶段拆分为 7 个可独立 review 和验收的分支，按顺序执行。
 
 ### Branch 1: 约束文档与计划
 
@@ -71,6 +71,15 @@ git switch -c docs/v0.1-context-and-plan
 - 分支起点：`feature/v0.1-real-llm-client` 合并后的基线。
 - 交付后验收人：Codex。
 - Definition of Done：用户可以在浏览器中打开前端页面并提交出生信息；前端调用现有分析 API；页面展示命盘摘要、分析摘要、主题分析、追问问题和 Markdown 报告；页面明确显示当前 `chart.source = "stub"` 的排盘来源；不新增 React/Vue/Vite 等复杂前端框架；不引入用户系统、历史记录、支付、前端路由或复杂状态管理；Claude 报告格式化、lint、测试命令和结果。
+
+### Branch 7: 真实紫微排盘引擎
+
+- 任务名称：v0.1 真实紫微排盘引擎接入
+- 建议分支名：`feature/v0.1-real-chart-engine`
+- 分支用途：替换 `ZiweiChartEngine` 当前的 stub 输出，优先接入旧项目已使用的 `iztro-py>=0.3.4,<1` 作为真实、确定性的紫微排盘 provider，让 `RawChart.source` 不再是 `stub`，并保持 LLM 只负责解释结构化命盘。
+- 分支起点：`feature/v0.1-static-frontend` 合并后的 `develop` 基线。
+- 交付后验收人：Codex。
+- Definition of Done：`ZiweiChartEngine.build_chart()` 对支持的公历出生信息返回基于 `iztro-py` 的真实排盘结构；响应中的 `chart.source` 明确标识 `iztro_py` 或等价真实 provider 且不再是 `stub`；真实排盘至少包含 12 宫、主星/辅星信息、四化或明确的暂不支持字段；不允许 LLM 参与排盘、历法换算、安星、定宫、四化、大限或流年计算；确定性 fixture 测试覆盖至少 3 个出生样例和边界输入；前端不再固定展示 stub 提示，而是根据 `chart.source` 动态展示排盘来源；`iztro-py` 必须通过内部 Engine/Adapter 封装并使用 `uv add "iztro-py>=0.3.4,<1"` 管理依赖；Claude 报告格式化、lint、测试命令和结果。
 
 后续每次新增开发任务，先在本节新增或更新：
 
@@ -383,6 +392,75 @@ MINGMAX_LLM_TIMEOUT_SECONDS=30
 - 是否正确展示免责声明和错误信息。
 - 是否同步更新 `.supports/ARCHITECTURE.md`、`.supports/API_SPEC.md` 或其他受影响文档。
 
+### Task 10: 接入真实紫微排盘引擎
+
+目标：把当前 `ZiweiChartEngine` 的 stub 结果替换为真实、可测试、可替换的确定性排盘实现。
+
+建议文件：
+
+- `app/engines/ziwei_chart_engine.py`
+- `app/engines/chart_normalizer.py`
+- `app/engines/providers/` 或等价内部适配目录
+- `app/schemas/chart.py`
+- `app/web/static/index.html`
+- `app/web/static/app.js`
+- `tests/test_chart_engine.py`
+- `tests/fixtures/` 或等价 fixture 文件
+- `tests/test_api_analysis.py`
+- `tests/test_frontend_static.py`
+- `.supports/DECISIONS.md`
+- `.supports/ARCHITECTURE.md`
+- `.supports/API_SPEC.md`
+- `.supports/TASKS.md`
+
+实现要求：
+
+- 底层真实排盘来源优先使用 `iztro-py>=0.3.4,<1`：
+  - 参考旧项目 `/home/liam/ideas/mingmind/agents/ziwei_agent.py`；
+  - 旧项目导入方式为 `from iztro_py import astro`；
+  - 旧项目核心调用为 `astro.by_solar_hour(user_input.true_solar_date, hour, user_input.gender)`；
+  - 依赖添加命令为 `uv add "iztro-py>=0.3.4,<1"`，必须提交 `pyproject.toml` 与 `uv.lock`；
+  - `iztro-py` 不得在 API、Service、Agent 或 LLM 层直接使用，只能封装在 Engine/Provider 层；
+  - 如果 `iztro-py` 在 Python 3.14 下安装或测试失败，Claude 必须先记录失败原因，再与项目负责人确认是否退回 v0.1 最小内部规则引擎。
+- `ZiweiChartEngine.build_chart(birth_info: BirthInfo) -> RawChart` 的对外接口保持稳定。
+- `RawChart.source` 必须改为真实引擎来源，例如 `iztro_py`，不得继续返回 `stub`。
+- 当前 `Gender.male` / `Gender.female` 映射到 `iztro-py` 的 `男` / `女`；`Gender.unknown` 本分支应返回清晰不支持错误，不得静默当成任一性别。
+- 当前 v0.1 使用 `birth_datetime` 在 `timezone` 对应地区的本地日期与小时调用 `astro.by_solar_hour()`；暂不实现真太阳时校正。
+- 对支持的 `solar` 输入必须输出真实排盘结构：
+  - 12 宫；
+  - 宫位名称；
+  - 地支/天干字段（如当前实现可得）；
+  - 星曜列表，至少映射 `major_stars`、`minor_stars`、`adjective_stars` 中可用信息；
+  - 四化信息，优先从 `iztro-py` 星曜/宫位字段映射，若当前结构无法稳定提取则明确 `None`/未支持字段并在文档中说明。
+- `lunar` 如果本分支暂不支持，继续返回清晰 `UNSUPPORTED_CALENDAR_TYPE`，不得静默按公历处理。
+- `ChartNormalizer` 不得写死 `"Stub chart"` 文案；summary 应根据真实 `source`、宫位数量、关键结构生成。
+- 前端当前固定 stub 提示必须调整：
+  - 不再在页面顶部无条件写“当前排盘结果为 stub”；
+  - 分析成功后根据 `chart.source` 展示排盘来源；
+  - 如果 `chart.source === "stub"` 才展示 stub 警告；
+  - 如果是真实来源，展示“排盘来源：<source>”或等价说明。
+- LLM 仍只接收 `NormalizedChart` 并解释，不得参与任何确定性排盘逻辑。
+
+测试要求由 Claude 执行：
+
+- 用 fixture 覆盖至少 3 个公历出生样例，断言输出稳定且 `source == "iztro_py"` 或等价真实 provider 名称。
+- 断言每个真实排盘结果有 12 宫。
+- 断言至少一个样例存在非空星曜列表，避免真实引擎退化为空结构。
+- 覆盖 `Gender.unknown` 返回清晰不支持错误。
+- 覆盖 `lunar` 未支持时返回清晰错误。
+- 覆盖 `ChartNormalizer` summary 不再包含 `"Stub chart"`。
+- 覆盖 API 响应中的 `chart.source != "stub"`。
+- 覆盖前端不再固定展示 stub 警告，并能显示动态排盘来源。
+- 单元测试不得调用 LLM API、不得访问网络、不得依赖开发者本机环境变量。
+
+验收关注：
+
+- 是否真正移除运行时 stub 排盘，而不是只改 `source` 字符串。
+- 是否保持 Engine 层承担确定性排盘，Agent/LLM/API 层没有接管排盘。
+- 是否有足够 fixture 测试证明真实排盘稳定。
+- 是否清楚记录 `iztro-py` 作为真实排盘实现来源、规则边界和未支持功能。
+- 如引入依赖，是否必要、轻量、通过 `uv` 管理，且没有引入 LangChain、LangGraph、CrewAI、任务队列、向量数据库等超范围基础设施。
+
 ## Claude 执行提示词
 
 ```text
@@ -514,6 +592,80 @@ feature/v0.1-static-frontend
 - commit 列表；
 - 修改文件列表；
 - 前端入口 URL；
+- 关键架构决策；
+- 测试命令和测试结果；
+- 未完成事项或风险。
+
+Codex 只负责后续 code review 和验收，不参与测试执行。
+```
+
+## Claude 执行提示词：Branch 7 真实紫微排盘引擎
+
+```text
+你负责开发和测试 mingmax v0.1 Branch 7：真实紫微排盘引擎接入。开始前必须阅读 AGENTS.md 和 .supports/ 下的所有规范文档。
+
+建议分支：
+feature/v0.1-real-chart-engine
+
+请从最新 develop 创建该分支。当前 develop 已合并 Branch 5 真实 LLM Client 和 Branch 6 静态前端。
+
+目标：
+替换 ZiweiChartEngine 当前的 stub 输出，接入真实、确定性的紫微排盘实现，让 API 响应中的 chart.source 不再是 stub，并且让前端根据 chart.source 动态展示排盘来源。
+
+硬性约束：
+1. 紫微排盘必须由 ZiweiChartEngine 或其内部 Provider/Adapter 完成。
+2. LLM 不得参与排盘、历法换算、安星、定宫、四化、大限或流年计算。
+3. API 层不得直接调用第三方紫微库，不得写排盘逻辑。
+4. Service 层只编排流程，不写具体排盘规则。
+5. Agent 层只解释 NormalizedChart，不负责排盘。
+6. 如果引入第三方紫微库，必须通过 uv add 管理依赖，并提交 pyproject.toml 与 uv.lock。
+7. 第三方库必须封装在 Engine/Provider 层，不能泄漏到 API、Service、Agent 或 LLM 层。
+8. 不引入八字、MBTI、大五人格、多体系交叉验证、用户系统、支付系统、任务队列、向量数据库、LangChain、LangGraph 或 CrewAI。
+9. 单元测试不得真实调用外部 LLM API，不得访问网络，不得依赖开发者本机环境变量。
+
+建议实现步骤：
+1. 使用旧项目已验证过的 `iztro-py>=0.3.4,<1` 作为真实排盘来源：
+   - 参考 `/home/liam/ideas/mingmind/agents/ziwei_agent.py`；
+   - 导入方式：`from iztro_py import astro`；
+   - 旧项目核心调用：`astro.by_solar_hour(user_input.true_solar_date, hour, user_input.gender)`；
+   - 添加依赖：`uv add "iztro-py>=0.3.4,<1"`；
+   - 如果 Python 3.14 下安装或测试失败，记录失败原因并停止，请项目负责人决定是否退回内部最小规则引擎。
+2. 保持 ZiweiChartEngine.build_chart(birth_info: BirthInfo) -> RawChart 接口稳定。
+3. 将真实实现封装在 app/engines/providers/ 或等价内部模块中。
+4. RawChart.source 必须改为真实来源，例如 iztro_py，不能继续返回 stub。
+5. Gender.male / Gender.female 映射到 iztro-py 的 男 / 女；Gender.unknown 返回清晰不支持错误。
+6. 当前 v0.1 使用 birth_datetime 在 timezone 对应地区的本地日期和小时调用 astro.by_solar_hour()；不实现真太阳时校正。
+7. 支持的 solar 输入必须返回真实结构：
+   - 12 宫；
+   - 宫名；
+   - 天干/地支字段（如可得）；
+   - 星曜列表，至少包含主星，尽量包含辅星/杂曜；
+   - 四化信息，或明确 None/未支持字段并在文档中说明。
+8. lunar 如果本分支暂不支持，继续返回 UNSUPPORTED_CALENDAR_TYPE，不得静默按公历处理。
+9. ChartNormalizer summary 不得再写死 "Stub chart"。
+10. 更新前端：
+   - 移除页面顶部固定 stub 警告；
+   - 成功响应后根据 chart.source 动态展示排盘来源；
+   - 只有 chart.source === "stub" 时才显示 stub 警告。
+11. 更新 .supports/ARCHITECTURE.md、.supports/API_SPEC.md、.supports/DECISIONS.md、.supports/TASKS.md 中受影响内容。
+
+测试要求：
+- 用 fixture 覆盖至少 3 个公历出生样例，断言 source == "iztro_py" 或等价真实 provider 名称。
+- 断言每个真实排盘结果包含 12 宫。
+- 断言至少一个样例存在非空星曜列表。
+- 覆盖 Gender.unknown 返回清晰不支持错误。
+- 覆盖 lunar 未支持时的清晰错误。
+- 覆盖 ChartNormalizer summary 不包含 "Stub chart"。
+- 覆盖 POST /api/v1/ziwei/analyze 返回 chart.source != "stub"。
+- 覆盖前端不再固定展示 stub 警告，并能动态显示排盘来源。
+- 原有 LLM、Prompt、API、前端静态测试继续通过。
+
+完成后请输出：
+- 分支名；
+- commit 列表；
+- 修改文件列表；
+- 真实排盘实现来源和规则边界；
+- 如新增依赖，说明 uv add 命令和必要性；
 - 关键架构决策；
 - 测试命令和测试结果；
 - 未完成事项或风险。
@@ -814,6 +966,76 @@ uv run pytest --cov=app  # 98% coverage, 365 statements, 9 miss
 - 无。本分支仅实现静态前端界面，不涉及后端业务逻辑变更。
 - Markdown 报告当前以 `<pre>` 原始文本展示，未引入 Markdown 渲染库（符合 v0.1 简单要求）。
 - 前端时区偏移计算使用浏览器 Intl API，未来如需精确到分钟偏移可增强。
+
+**请求 Codex review。**
+
+---
+
+### Branch 7: `feature/v0.1-real-chart-engine`
+
+**分支名：** `feature/v0.1-real-chart-engine`
+
+**Commit 列表：**
+
+1. `feat: replace stub engine with iztro-py real chart provider`
+
+**修改文件列表：**
+
+- `app/engines/providers/__init__.py` — providers 模块初始化
+- `app/engines/providers/iztro_provider.py` — iztro-py 适配层（build_chart_from_iztro、gender 映射、星曜解析、四化提取）
+- `app/engines/ziwei_chart_engine.py` — 改为调用 iztro_provider，source 不再是 stub
+- `app/engines/chart_normalizer.py` — summary 不再写死 "Stub chart"
+- `app/api/v1/routes_analysis.py` — 新增 UnsupportedGenderError → UNSUPPORTED_GENDER 错误响应
+- `app/web/static/index.html` — 移除固定 stub 提示，改为动态 source-notice 区域
+- `app/web/static/app.js` — 新增 renderResult 中根据 chart.source 动态展示排盘来源逻辑
+- `app/web/static/styles.css` — 新增 stub-notice（黄底）和 source-notice（绿底）样式
+- `tests/test_chart_engine.py` — 15 项测试（3 个出生样例、12 宫、中文名、地支、星曜、四化、Gender.unknown、source=iztro_py、normalizer 不含 Stub chart）
+- `tests/test_api_analysis.py` — 新增 unknown gender 422 测试、断言 chart.source=iztro_py
+- `tests/test_frontend_static.py` — 更新为动态 source 测试（不再检查固定 stub 文案）
+- `pyproject.toml` — 新增 iztro-py>=0.3.4,<1 运行时依赖
+- `uv.lock` — 依赖锁文件更新
+
+**真实排盘实现来源和规则边界：**
+
+- 使用 `iztro-py>=0.3.4,<1`（D014 决策），通过 `astro.by_solar_hour(solar_date, hour, gender)` 调用
+- 支持范围：公历输入、Gender.male/female、12 宫、主星/辅星/杂曜、天干/地支、四化（禄权科忌）
+- 未支持：lunar 农历输入、Gender.unknown（返回清晰错误）、真太阳时校正、大限/流年
+- iztro-py metadata 标注 Python 3.8-3.12，实际在 Python 3.14 下安装和运行正常
+
+**新增依赖：**
+
+```bash
+uv add "iztro-py>=0.3.4,<1"
+```
+
+必要性：iztro-py 是旧项目已验证过的确定性紫微排盘库（D014 决策），可本地运行、无网络依赖。同时引入了 ephem、lunar-python、lunarcalendar、python-dateutil、pytz、six 作为传递依赖。
+
+**关键架构决策：**
+
+- iztro-py 封装在 `app/engines/providers/iztro_provider.py`，不泄漏到 API/Service/Agent/LLM 层
+- `ZiweiChartEngine.build_chart()` 接口保持不变，内部改为调用真实 provider
+- `RawChart.source` 从 `"stub"` 改为 `"iztro_py"`
+- Gender.male→"男"、Gender.female→"女"映射；Gender.unknown 返回 `UnsupportedGenderError`
+- 前端根据 `chart.source` 动态展示排盘来源，stub 时黄底警告，真实来源时绿底显示
+
+**测试命令和结果：**
+
+```bash
+uv run black --check app/ tests/ main.py   # 48 files unchanged
+uv run isort --check-only app/ tests/ main.py  # no changes
+uv run flake8 app/ tests/ main.py --max-line-length=120  # 0 errors
+
+uv run pytest -v   # 89 passed in 0.27s
+uv run pytest --cov=app  # 98% coverage, 428 statements, 10 miss
+```
+
+**未完成事项或风险：**
+
+- `lunar` 农历输入仍不支持，继续返回 `UNSUPPORTED_CALENDAR_TYPE`
+- `Gender.unknown` 不支持，返回 `UNSUPPORTED_GENDER` 错误
+- 真太阳时校正未实现，当前使用出生地时区下的本地日期与小时
+- 大限/流年计算未实现，可在后续分支中处理
+- iztro-py 传递依赖较多（ephem、lunar-python 等），但均为本地确定性计算库
 
 **请求 Codex review。**
 

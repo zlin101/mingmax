@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.api.dependencies import get_analysis_service
 from app.api.errors import llm_client_failed_exception
+from app.engines.providers.iztro_provider import UnsupportedGenderError
 from app.engines.ziwei_chart_engine import UnsupportedCalendarTypeError
 from app.llm.openai_compatible import LLMClientError
 from app.schemas.analysis import AnalysisRequest, AnalysisResponse, ErrorResponse
@@ -23,6 +24,17 @@ async def analyze(
             detail={
                 "error": {
                     "code": "UNSUPPORTED_CALENDAR_TYPE",
+                    "message": str(e),
+                    "details": [],
+                }
+            },
+        )
+    except UnsupportedGenderError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={
+                "error": {
+                    "code": "UNSUPPORTED_GENDER",
                     "message": str(e),
                     "details": [],
                 }

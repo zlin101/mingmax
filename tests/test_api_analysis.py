@@ -40,6 +40,8 @@ async def test_analyze_valid_request(client: AsyncClient) -> None:
     assert "analysis" in data
     assert "report_markdown" in data
     assert "免责声明" in data["report_markdown"]
+    assert data["chart"]["source"] != "stub"
+    assert data["chart"]["source"] == "iztro_py"
 
 
 async def test_analyze_invalid_birth_info(client: AsyncClient) -> None:
@@ -91,6 +93,26 @@ async def test_analyze_lunar_calendar(client: AsyncClient) -> None:
     data = response.json()
     assert data["detail"]["error"]["code"] == "UNSUPPORTED_CALENDAR_TYPE"
     assert "Unsupported calendar type: lunar" in data["detail"]["error"]["message"]
+
+
+async def test_analyze_unknown_gender(client: AsyncClient) -> None:
+    response = await client.post(
+        "/api/v1/ziwei/analyze",
+        json={
+            "birth": {
+                "calendar_type": "solar",
+                "birth_datetime": "1995-05-17T08:30:00+08:00",
+                "gender": "unknown",
+                "birth_place": "Shanghai, China",
+                "timezone": "Asia/Shanghai",
+            },
+        },
+    )
+
+    assert response.status_code == 422
+    data = response.json()
+    assert data["detail"]["error"]["code"] == "UNSUPPORTED_GENDER"
+    assert "not supported" in data["detail"]["error"]["message"]
 
 
 async def test_analyze_llm_client_failure_returns_error_response(client: AsyncClient) -> None:
