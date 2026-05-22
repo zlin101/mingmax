@@ -111,11 +111,9 @@ async def test_agent_analyze_non_json() -> None:
 async def test_agent_analyze_missing_required_fields() -> None:
     llm = _StubLLMClient(json.dumps({"summary": "ok"}))
     agent = ZiweiAnalysisAgent(llm)
-    result = await agent.analyze(_normalized_chart())
 
-    assert result.summary == "ok"
-    assert result.strong_signals == []
-    assert result.weak_hypotheses == []
+    with pytest.raises(LLMOutputParseError, match="missing required fields"):
+        await agent.analyze(_normalized_chart())
 
 
 async def test_agent_analyze_json_array_instead_of_object() -> None:
@@ -157,14 +155,12 @@ async def test_agent_analyze_themes_non_json() -> None:
         await agent.analyze_themes(_normalized_chart(), ["career"])
 
 
-async def test_agent_analyze_themes_missing_fields_uses_defaults() -> None:
+async def test_agent_analyze_themes_missing_fields() -> None:
     llm = _StubLLMClient(json.dumps({"theme": "relationship"}))
     agent = ZiweiAnalysisAgent(llm)
-    results = await agent.analyze_themes(_normalized_chart(), ["relationship"])
 
-    assert len(results) == 1
-    assert results[0].theme == "relationship"
-    assert results[0].observations == []
+    with pytest.raises(LLMOutputParseError, match="missing required fields"):
+        await agent.analyze_themes(_normalized_chart(), ["relationship"])
 
 
 # --- Agent.generate_followup_questions ---
@@ -222,8 +218,6 @@ async def test_agent_followup_questions_array_item_not_object() -> None:
 async def test_agent_followup_questions_missing_fields() -> None:
     llm = _StubLLMClient(json.dumps([{}]))
     agent = ZiweiAnalysisAgent(llm)
-    results = await agent.generate_followup_questions(_normalized_chart(), "analysis")
 
-    assert len(results) == 1
-    assert results[0].question == ""
-    assert results[0].reason == ""
+    with pytest.raises(LLMOutputParseError, match="missing required fields"):
+        await agent.generate_followup_questions(_normalized_chart(), "analysis")
