@@ -101,6 +101,7 @@ self_understanding
 - `CHART_ENGINE_FAILED`：排盘 Engine 失败。
 - `PROMPT_LOAD_FAILED`：Prompt 文件缺失或加载失败。
 - `LLM_CLIENT_FAILED`：LLM 抽象层调用失败。
+- `LLM_OUTPUT_INVALID`：LLM 输出不符合 JSON 契约（非 JSON、空内容、缺少必填字段、字段类型错误）。
 - `REPORT_GENERATION_FAILED`：Markdown 报告生成失败。
 
 ## 状态码
@@ -108,6 +109,7 @@ self_understanding
 - `200`：分析成功。
 - `422`：请求结构或字段校验失败。
 - `500`：内部服务错误。
+- `502`：LLM 输出解析失败（`LLM_OUTPUT_INVALID`）。
 
 ## 契约约束
 

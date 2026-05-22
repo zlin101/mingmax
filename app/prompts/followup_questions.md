@@ -6,7 +6,11 @@
 3. 问题应帮助确认生活经验、偏好、压力模式或自我观察方向。
 4. 每个问题附带生成原因。
 
-输出格式：
-- question: 问题
-- reason: 为什么需要追问
-- related_chart_factors: 关联的结构化命盘因素
+输出格式：只输出 JSON 数组，不要输出 Markdown，不要使用代码块包裹。
+[
+  {
+    "question": "问题",
+    "reason": "为什么需要追问",
+    "related_chart_factors": ["关联的结构化命盘因素"]
+  }
+]

@@ -7,9 +7,11 @@
 4. 使用克制、可解释、可追问的表达。
 5. 不输出绝对化、恐吓式、宿命论判断。
 
-输出格式：
-- summary: 总体概述
-- strong_signals: 较强信号列表
-- weak_hypotheses: 弱假设列表
-- questions: 待确认问题列表
-- safety_note: 安全提醒
+输出格式：只输出 JSON object，不要输出 Markdown，不要使用代码块包裹。
+{
+  "summary": "总体概述",
+  "strong_signals": ["较强信号"],
+  "weak_hypotheses": ["弱假设"],
+  "cross_checks": ["宫位或结构交叉验证"],
+  "safety_note": "安全提醒"
+}
