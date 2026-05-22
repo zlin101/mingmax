@@ -1,8 +1,10 @@
+import hashlib
 from zoneinfo import ZoneInfo
 
 from iztro_py import astro
 
 from app.engines.errors import UnsupportedGenderError
+from app.engines.time_calibration import infer_longitude_from_timezone, true_solar_time_offset
 from app.schemas.birth import BirthInfo, Gender
 from app.schemas.chart import FourHua, Palace, RawChart, Star
 
@@ -17,8 +19,13 @@ SOURCE = "iztro_py"
 def _get_local_date_hour(birth_info: BirthInfo) -> tuple[str, int]:
     tz = ZoneInfo(birth_info.timezone)
     local_dt = birth_info.birth_datetime.astimezone(tz)
-    date_str = local_dt.strftime("%Y-%m-%d")
-    hour = local_dt.hour
+
+    longitude = birth_info.longitude if birth_info.longitude is not None else infer_longitude_from_timezone(local_dt)
+    tst_offset = true_solar_time_offset(local_dt, longitude)
+    true_solar_dt = local_dt + tst_offset
+    date_str = true_solar_dt.strftime("%Y-%m-%d")
+    hour = true_solar_dt.hour
+
     return date_str, hour
 
 
@@ -96,8 +103,6 @@ def build_chart_from_iztro(birth_info: BirthInfo) -> RawChart:
         )
 
     four_hua = _extract_four_hua(chart.palaces)
-
-    import hashlib
 
     payload = birth_info.model_dump_json()
     digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()[:12]

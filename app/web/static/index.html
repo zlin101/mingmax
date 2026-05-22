@@ -40,6 +40,9 @@
         <label for="birth_place">出生地点</label>
         <input type="text" id="birth_place" name="birth_place" placeholder="Shanghai, China" required>
 
+        <label for="longitude">经度（根据出生地点自动填充，可手动修改）</label>
+        <input type="number" id="longitude" name="longitude" step="0.001" min="-180" max="180" placeholder="自动填充">
+
         <label for="timezone">时区</label>
         <input type="text" id="timezone" name="timezone" value="Asia/Shanghai" required>
       </fieldset>

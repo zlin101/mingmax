@@ -94,6 +94,17 @@ async def test_analyze_naive_birth_datetime_is_rejected(client: AsyncClient) -> 
     assert response.status_code == 422
 
 
+async def test_analyze_invalid_longitude_is_rejected(client: AsyncClient) -> None:
+    payload = _valid_request_payload()
+    birth = payload["birth"]
+    assert isinstance(birth, dict)
+    birth["longitude"] = 181
+
+    response = await client.post("/api/v1/ziwei/analyze", json=payload)
+
+    assert response.status_code == 422
+
+
 async def test_analyze_lunar_calendar(client: AsyncClient) -> None:
     response = await client.post(
         "/api/v1/ziwei/analyze",

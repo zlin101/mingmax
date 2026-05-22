@@ -67,6 +67,12 @@ def test_empty_birth_place() -> None:
         BirthInfo(**_valid_birth_info(birth_place=""))
 
 
+def test_longitude_must_be_in_valid_range() -> None:
+    for longitude in (-180.1, 180.1):
+        with pytest.raises(ValidationError):
+            BirthInfo(**_valid_birth_info(longitude=longitude))
+
+
 def test_lunar_calendar_not_accepted_yet() -> None:
     info = BirthInfo(**_valid_birth_info(calendar_type="lunar"))
     assert info.calendar_type == CalendarType.lunar

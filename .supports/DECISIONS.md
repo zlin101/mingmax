@@ -130,3 +130,21 @@ BirthInfo -> ZiweiChartEngine -> RawChart -> NormalizedChart -> ZiweiAnalysisAge
 - 状态：已确认
 - 决策：基础分析、主题分析和追问问题的 Prompt 必须明确要求只输出 JSON（object 或 array），不要 Markdown、不要代码块包裹。
 - 影响：Agent 解析层可剥离常见模型误输出的代码块包裹，但 Prompt 侧应尽量消除这种需求。
+
+### D019: 私密验证样本不得进入仓库
+
+- 状态：已确认
+- 决策：用于排盘准确性验证的私密出生信息和参考命盘文件（如 `.supports/TEST_INFO_EVA.md`）必须通过 `.gitignore` 排除，不得提交到仓库。自动化测试只使用合成 fixture，不使用私密样本。
+- 影响：本地验证脚本只输出脱敏差异统计；验证结果记录在 TASKS.md 中，不包含真实出生日期、地点、经度或完整宫位文本。
+
+### D020: 真太阳时校正是默认行为
+
+- 状态：已确认
+- 决策：Provider 默认始终进行真太阳时校正。如果 `BirthInfo` 提供 `longitude`，使用精确经度计算；如果不提供，从 `timezone` 的 UTC offset 推算近似经度（`longitude ≈ UTC_offset_hours × 15`），此时只有均时差修正，不含经度偏差修正。真太阳时计算限定在 Engine/Provider 层。
+- 影响：同一出生时间有无 longitude 可能产生不同排盘结果（因近似经度与实际经度偏差）。对于出生地经度与标准时区经线偏差较大的地区，建议显式提供 longitude。
+
+### D021: 宫位 index 差异降为 warning
+
+- 状态：已确认
+- 决策：不同紫微排盘系统的宫位编号起点不同（如从子起 vs 从寅起），`chart_diff` 将 index 差异归类为 warning 而非 error。major_stars、palace name、four_hua 差异仍为 error。
+- 影响：使用 chart_diff 对比时，index warning 不影响 `is_match` 判定。

@@ -84,178 +84,84 @@
 - 重要决策：第三方紫微库只允许在 Engine/Provider 层使用，不泄漏到 API、Service、Agent 或 LLM 层。
 - 遗留风险：`iztro-py` metadata 标注 Python 3.8-3.12，但实际已在 Python 3.14 下安装运行；后续升级 Python 或依赖时需重新验证。
 
-## 当前任务：Branch 8 LLM 输出质量与失败兜底
+### Branch 8: LLM 输出质量与失败兜底
 
-### 基本信息
+- 分支名：`feature/v0.1-llm-output-contract-and-fallback`
+- 目标：修通真实 LLM 工作流，建立基础分析、主题分析和追问问题的 JSON 输出契约、结构化解析和失败兜底。
+- 关键交付：`LLMOutputParseError`、JSON object/array 解析、`LLM_OUTPUT_INVALID` 502 错误映射、Prompt JSON-only 约束、MockLLMClient 分 prompt 返回契约化内容。
+- 重要决策：Agent 负责解析 LLM 输出，Service 只编排；模型返回非 JSON、缺字段或字段类型错误时不得伪成功。
+- 测试摘要：`uv run black --check .`、`uv run isort --check-only .`、`uv run flake8 .`、`uv run pytest -q` 均已通过；当时测试为 `123 passed`。
+- 遗留风险：真实 LLM 输出质量仍依赖 prompt 和模型稳定性；报告 Markdown 暂不做结构化解析。
 
-- 任务名称：v0.1 LLM 输出质量与失败兜底
-- 建议分支名：`feature/v0.1-llm-output-contract-and-fallback`
-- 分支起点：`feature/v0.1-real-chart-engine` 合并后的 `develop` 基线。
-- 交付后验收人：Codex。
+### Branch 9: 私密样本驱动的排盘准确性基准
 
-Claude 开发前建议执行：
+- 分支名：`feature/v0.1-chart-accuracy-baseline`
+- 目标：建立排盘准确性验证工具链，修复真太阳时偏差导致宫位错误，通过本地私密样本验证排盘正确性。
+- 关键交付：
+  - `app/engines/chart_diff.py` 结构化命盘对比工具；
+  - `app/engines/providers/iztro_provider.py` 真太阳时校正（均时差 + 经度校正）；
+  - `app/schemas/birth.py` 新增可选 `longitude` 字段；
+  - `scripts/verify_private_chart_sample.py` 本地验证脚本；
+  - `tests/test_chart_diff.py`、`tests/test_chart_normalizer_accuracy.py`、`tests/test_provider_input_caliber.py`。
+- 重要决策：宫位 index 差异（参考系统起点 vs iztro 起点不同）降为 warning 而非 error；第三方库使用范围限定在 Engine/Provider 层。
+- 遗留风险：`iztro-py` metadata 标注 Python 3.8-3.12 但已在 Python 3.14 下运行；真太阳时均时差为近似值。
 
-```bash
-git switch develop
-git pull --ff-only
-git switch -c feature/v0.1-llm-output-contract-and-fallback
-```
+## Code Review 申请
 
-### 任务目标
+### Branch 9: `feature/v0.1-chart-accuracy-baseline`
 
-先修通真实模型工作流，确保运行时不会误用 MockLLMClient；再为基础分析、主题分析和追问问题建立 JSON 输出契约、解析逻辑和失败兜底。
+**分支名：** `feature/v0.1-chart-accuracy-baseline`
 
-当前已确认的根因：
+**Commit 列表：**
 
-- 如果本机 `.env` 未显式设置 `MINGMAX_LLM_PROVIDER=openai_compatible`，运行时会继续使用 MockLLMClient。
-- `app/services/analysis_service.py` 当前仍硬编码 `uncertainty="mock"` 和 `reason="mock"`。
-- `MockLLMClient` 当前返回 Markdown stub 报告文本，导致主题分析里出现整段 Markdown 被塞入 `observations` 的情况。
-- Branch 7 已处理真实排盘；Branch 8 不再改排盘 provider，只消费 `NormalizedChart`。
+1. `feat: add chart diff tool, true solar time correction and accuracy baseline`
 
-### 任务边界
+**修改文件列表：**
 
-本分支只解决：
+- `app/engines/chart_diff.py` — 新增 `ExpectedPalaceSnapshot`、`ExpectedChartSnapshot`、`PalaceDiff`、`ChartDiffResult`、`diff_charts()` 结构化对比工具；index 差异为 warning，major_stars/name/count/hua 差异为 error
+- `app/engines/providers/iztro_provider.py` — 新增 365 日均时差近似表 `_EQUATION_OF_TIME_APPROX`；新增 `_true_solar_time_offset()` 计算真太阳时偏移；`_get_local_date_hour()` 在提供 longitude 时自动校正时辰
+- `app/schemas/birth.py` — 新增可选 `longitude: float | None = None` 字段（东经度数）
+- `scripts/verify_private_chart_sample.py` — 本地私密样本验证脚本，解析参考命盘文本，与排盘结果对比，输出脱敏差异摘要
+- `.gitignore` — 新增 `.supports/TEST_INFO_EVA.md` 排除规则
+- `tests/test_chart_diff.py` — 9 项测试：identical、star mismatch、body palace warning、count mismatch、four hua、missing palace、index warning、no private data
+- `tests/test_chart_normalizer_accuracy.py` — 10 项测试验证 NormalizedChart 保真透传
+- `tests/test_provider_input_caliber.py` — 8 项测试：有/无 longitude、真太阳时校正、EOT 边界、negative longitude、gender unknown
+- `.supports/API_SPEC.md` — 新增 `longitude` 字段文档、排盘准确性验证相关说明
+- `.supports/ARCHITECTURE.md` — 新增排盘准确性验证章节：输入口径、真太阳时计算、字段保真、对比工具、本地验证脚本、未支持范围
+- `.supports/DEVELOPMENT_GUIDE.md` — 新增本地私密样本验证章节和隐私要求
+- `.supports/DECISIONS.md` — 新增 D019（私密样本不进仓库）
+- `.supports/TASKS.md` — 压缩旧任务摘要，更新当前任务
 
-- 真实 LLM 工作流启用与可验证性；
-- LLM JSON 输出契约；
-- Agent 结构化解析；
-- 解析失败兜底；
-- `mock` 占位字段清理；
-- 相关 Prompt、API、测试和文档更新。
+**关键架构决策：**
 
-本分支不做：
+- 真太阳时校正仅在提供 `longitude` 时启用，不改变无 longitude 的默认行为
+- 均时差使用 365 天近似表（精度约 1 分钟），足够时辰级判定
+- 宫位 index 在不同排盘系统中起点不同（子 vs 寅），降为 warning 避免误报
+- 私密验证文件 `.supports/TEST_INFO_EVA.md` 通过 `.gitignore` 排除，测试只使用合成 fixture
+- `chart_diff.py` 只输出字段级差异统计，不包含任何出生信息
 
-- 真实排盘 provider 改造；
-- 八字、MBTI、多 Agent；
-- 数据库、任务队列、向量数据库；
-- 用户系统、支付系统；
-- 复杂前端或前端框架。
-
-### 必须修改的模块
-
-- `app/core/config.py`
-  - 保留默认 `llm_provider="mock"`，但文档和手动验证必须明确真实模型需要 `MINGMAX_LLM_PROVIDER=openai_compatible`。
-- `.env.example`
-  - 补充真实模型启用示例，强调必须设置 `MINGMAX_LLM_PROVIDER=openai_compatible`，不能只设置 model/key/base_url。
-- `app/llm/mock.py`
-  - Mock 返回内容改为符合 JSON 输出契约的文本，不再返回 stub Markdown 报告作为所有 prompt 的固定输出。
-- `app/agents/ziwei_analysis_agent.py`
-  - 增加结构化解析职责。
-  - `analyze()` 应返回 `AnalysisResult` 或等价内部结构，而不是裸字符串。
-  - `analyze_themes()` 应返回 `list[ThemeAnalysis]`。
-  - `generate_followup_questions()` 应返回 `list[FollowupQuestion]`。
-  - `generate_report()` 可以继续返回 Markdown，但必须基于结构化分析上下文。
-- `app/services/analysis_service.py`
-  - 移除 `uncertainty="mock"`、`reason="mock"` 等开发占位。
-  - Service 只编排 Engine、Normalizer、Agent，不负责拼装假的分析字段。
-- `app/api/errors.py` 与 `app/api/v1/routes_analysis.py`
-  - 将 LLM 输出解析错误映射为清晰错误响应。
-  - 建议错误码：`LLM_OUTPUT_INVALID`。
-  - HTTP 状态可用 `502 Bad Gateway` 或沿用当前 LLM 失败策略，但必须一致并有测试。
-- `app/prompts/ziwei_analysis.md`
-  - 明确要求只输出 JSON object，不要 Markdown，不要代码块。
-- `app/prompts/theme_analysis.md`
-  - 明确要求只输出 JSON object，不要 Markdown，不要代码块。
-- `app/prompts/followup_questions.md`
-  - 明确要求只输出 JSON array，不要 Markdown，不要代码块。
-- `.supports/API_SPEC.md`
-  - 若实现中调整错误码或响应格式，必须同步更新。
-- `.supports/PROMPT_GUIDE.md`
-  - 若 Prompt JSON 字段变化，必须同步更新。
-
-### 输出契约
-
-基础分析 JSON：
-
-```json
-{
-  "summary": "string",
-  "strong_signals": ["string"],
-  "weak_hypotheses": ["string"],
-  "cross_checks": ["string"],
-  "safety_note": "string"
-}
-```
-
-主题分析 JSON：
-
-```json
-{
-  "theme": "relationship",
-  "observations": ["string"],
-  "supporting_evidence": ["string"],
-  "uncertainty": "string",
-  "followup_questions": ["string"]
-}
-```
-
-追问问题 JSON：
-
-```json
-[
-  {
-    "question": "string",
-    "reason": "string",
-    "related_chart_factors": ["string"]
-  }
-]
-```
-
-### 推荐 TDD 步骤
-
-1. 先写 `tests/test_ziwei_analysis_agent.py` 或更新现有 Agent 测试：
-   - Mock LLM 返回合法基础分析 JSON，`agent.analyze()` 解析为 `AnalysisResult`。
-   - Mock LLM 返回合法主题 JSON，`agent.analyze_themes()` 解析为 `ThemeAnalysis`。
-   - Mock LLM 返回合法追问 JSON array，`agent.generate_followup_questions()` 解析为 `FollowupQuestion` 列表。
-   - Mock LLM 返回非 JSON，抛出明确的 LLM 输出错误。
-   - Mock LLM 返回缺少必填字段，抛出明确的 LLM 输出错误。
-   - Mock LLM 返回字段类型错误，抛出明确的 LLM 输出错误。
-2. 再实现 Agent 解析逻辑和错误类型。
-3. 更新 `MockLLMClient`，让不同 prompt 返回符合契约的固定 JSON 或报告 Markdown。
-4. 更新 `AnalysisService`，移除 `mock` 占位字段。
-5. 写 API 错误映射测试：
-   - LLM 输出解析失败时 API 返回结构化错误，不返回伪成功分析。
-6. 写依赖装配或配置测试：
-   - `MINGMAX_LLM_PROVIDER=openai_compatible` 时返回真实 Client。
-   - `.env` 只设置 model/key/base_url 但未设置 provider 时，仍应保持 mock；文档必须明确这一点。
-7. 更新 prompt 文件和 `.supports/` 文档。
-
-### 手动真实 LLM 验证要求
-
-Claude 完成本分支后，使用本机私密 `.env` 做一次手动验证，但不得提交真实 key。
-
-必须记录脱敏信息：
-
-```text
-MINGMAX_LLM_PROVIDER=openai_compatible
-MINGMAX_LLM_MODEL=<脱敏或模型名>
-MINGMAX_LLM_BASE_URL=<脱敏或公开网关 URL>
-MINGMAX_LLM_API_KEY=<redacted>
-MINGMAX_LLM_WIRE_API=chat_completions
-MINGMAX_LLM_TIMEOUT_SECONDS=120
-```
-
-验收响应必须满足：
-
-- 不出现 `uncertainty: "mock"`。
-- 不出现 `reason: "mock"`。
-- 不出现 MockLLMClient 固定文案"基于 stub 排盘的模拟分析"。
-- 主题分析的 `observations` 是观察点数组，不是整段 Markdown 报告。
-- 如果模型认为证据不足，必须基于当前 `chart.source` 和结构化命盘说明原因，不能把 Mock 文案当作模型输出。
-- 报告包含免责声明。
-
-### 测试命令
-
-Claude 完成开发后必须报告以下命令和结果：
+**测试命令和结果：**
 
 ```bash
-uv run black --check .
-uv run isort --check-only .
-uv run flake8 .
-uv run pytest -q
+uv run black --check .   # 55 files unchanged
+uv run isort --check-only .  # no changes
+uv run flake8 .           # 0 errors
+
+uv run pytest -q          # 150 passed in 0.40s
 ```
 
-如当前分支还没有 `.flake8` 导致 `uv run flake8 .` 扫描 `.venv` 或使用 79 行宽，Claude 应补充最小 `.flake8`，与 Black/isort 的 120 行宽保持一致，并排除 `.venv`。
+**本地验证结果：**
+
+使用私密样本 `scripts/verify_private_chart_sample.py .supports/TEST_INFO_EVA.md` 验证通过，0 errors。
+
+**未完成事项或风险：**
+
+- 真太阳时均时差为近似值，精度约 1 分钟，极端边界（时辰交界点）可能需更高精度表
+- 大限、流年、流月、流日、流时暂未支持
+- 农历输入和 `Gender.unknown` 仍不支持
+- `.supports/ZIWEI_TS_REFERENCE_REVIEW.md` 为研究过程文档，是否提交待确认
+
+**请求 Codex review。**
 
 ## Codex 验收清单
 
