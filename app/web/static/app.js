@@ -26,22 +26,22 @@
   function toISOStringWithOffset(datetimeLocalValue) {
     var parts = datetimeLocalValue.replace("T", " ").split(/[- :]/);
     var dt = new Date(
-      parseInt(parts[0]),
-      parseInt(parts[1]) - 1,
-      parseInt(parts[2]),
-      parseInt(parts[3]),
-      parseInt(parts[4])
+      parseInt(parts[0], 10),
+      parseInt(parts[1], 10) - 1,
+      parseInt(parts[2], 10),
+      parseInt(parts[3], 10),
+      parseInt(parts[4], 10)
     );
     var tz = document.getElementById("timezone").value.trim();
     var offsetMinutes = getTimezoneOffsetMinutes(tz, dt);
     if (offsetMinutes === null) {
-      return datetimeLocalValue + "+08:00";
+      return datetimeLocalValue + ":00+08:00";
     }
     var sign = offsetMinutes >= 0 ? "+" : "-";
     var absOffset = Math.abs(offsetMinutes);
     var hours = String(Math.floor(absOffset / 60)).padStart(2, "0");
     var mins = String(absOffset % 60).padStart(2, "0");
-    return dt.toISOString().slice(0, 19) + sign + hours + ":" + mins;
+    return datetimeLocalValue + ":00" + sign + hours + ":" + mins;
   }
 
   function getTimezoneOffsetMinutes(tz, date) {
@@ -58,12 +58,26 @@
       var match = offsetPart.value.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);
       if (!match) return null;
       var sign = match[1] === "+" ? 1 : -1;
-      var h = parseInt(match[2]);
-      var m = match[3] ? parseInt(match[3]) : 0;
+      var h = parseInt(match[2], 10);
+      var m = match[3] ? parseInt(match[3], 10) : 0;
       return sign * (h * 60 + m);
     } catch (_e) {
       return null;
     }
+  }
+
+  function parseResponse(response) {
+    return response.json().catch(function () {
+      return response.text().then(function (text) {
+        return {
+          error: {
+            code: "HTTP_" + response.status,
+            message: "HTTP " + response.status + (text ? ": " + text : ""),
+            details: [],
+          },
+        };
+      });
+    });
   }
 
   function buildPayload() {
@@ -174,7 +188,7 @@
       body: JSON.stringify(payload),
     })
       .then(function (response) {
-        return response.json().then(function (data) {
+        return parseResponse(response).then(function (data) {
           return { ok: response.ok, status: response.status, data: data };
         });
       })

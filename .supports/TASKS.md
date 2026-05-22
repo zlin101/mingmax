@@ -10,7 +10,7 @@
 
 ## 分支计划
 
-第一阶段拆分为 5 个可独立 review 和验收的分支，按顺序执行。
+第一阶段拆分为 6 个可独立 review 和验收的分支，按顺序执行。
 
 ### Branch 1: 约束文档与计划
 
@@ -66,7 +66,7 @@ git switch -c docs/v0.1-context-and-plan
 ### Branch 6: 简单静态前端界面
 
 - 任务名称：v0.1 简单前端分析界面
-- 建议分支名：`feature/v0.1-simple-frontend`
+- 建议分支名：`feature/v0.1-static-frontend`
 - 分支用途：在不引入复杂前端框架的前提下，为现有 `POST /api/v1/ziwei/analyze` 提供一个可用的浏览器界面，用于验证出生信息输入、分析选项、请求状态、错误提示和报告展示闭环。
 - 分支起点：`feature/v0.1-real-llm-client` 合并后的基线。
 - 交付后验收人：Codex。
@@ -474,7 +474,7 @@ Codex 只负责后续 code review 和验收，不参与测试执行。
 你负责开发和测试 mingmax v0.1 Branch 6：简单静态前端界面。开始前必须阅读 AGENTS.md 和 .supports/ 下的所有规范文档。
 
 建议分支：
-feature/v0.1-simple-frontend
+feature/v0.1-static-frontend
 
 请在 feature/v0.1-real-llm-client 合并后的基线上创建该分支。如果当前基线尚未合并，请先等待项目负责人确认基线。
 
