@@ -10,7 +10,7 @@
 
 ## 分支计划
 
-第一阶段拆分为 5 个可独立 review 和验收的分支，按顺序执行。
+第一阶段拆分为 6 个可独立 review 和验收的分支，按顺序执行。
 
 ### Branch 1: 约束文档与计划
 
@@ -62,6 +62,15 @@ git switch -c docs/v0.1-context-and-plan
 - 分支起点：`feature/v0.1-analysis-flow` 合并后的基线。
 - 交付后验收人：Codex。
 - Definition of Done：所有真实 LLM 调用仍经 `LLMClient` 抽象；单元测试不真实访问外部 LLM；真实调用通过手动集成验证记录；失败时返回清晰错误；报告仍包含免责声明；LLM 不参与排盘，命盘仍来自 `ZiweiChartEngine`。
+
+### Branch 6: 简单静态前端界面
+
+- 任务名称：v0.1 简单前端分析界面
+- 建议分支名：`feature/v0.1-static-frontend`
+- 分支用途：在不引入复杂前端框架的前提下，为现有 `POST /api/v1/ziwei/analyze` 提供一个可用的浏览器界面，用于验证出生信息输入、分析选项、请求状态、错误提示和报告展示闭环。
+- 分支起点：`feature/v0.1-real-llm-client` 合并后的基线。
+- 交付后验收人：Codex。
+- Definition of Done：用户可以在浏览器中打开前端页面并提交出生信息；前端调用现有分析 API；页面展示命盘摘要、分析摘要、主题分析、追问问题和 Markdown 报告；页面明确显示当前 `chart.source = "stub"` 的排盘来源；不新增 React/Vue/Vite 等复杂前端框架；不引入用户系统、历史记录、支付、前端路由或复杂状态管理；Claude 报告格式化、lint、测试命令和结果。
 
 后续每次新增开发任务，先在本节新增或更新：
 
@@ -317,6 +326,63 @@ MINGMAX_LLM_TIMEOUT_SECONDS=30
 - 手动真实调用结果可复现，且报告包含免责声明。
 - `chart.source` 仍标记为 `stub`，不得暗示已经实现真实紫微排盘。
 
+### Task 9: 实现简单静态前端界面
+
+目标：提供一个轻量、可维护、可测试的浏览器界面，优先验证 v0.1 后端闭环，而不是构建完整前端应用。
+
+建议文件：
+
+- `app/web/static/index.html`
+- `app/web/static/styles.css`
+- `app/web/static/app.js`
+- `app/web/__init__.py`
+- `app/main.py`
+- `tests/test_frontend_static.py`
+- `.supports/ARCHITECTURE.md`
+- `.supports/API_SPEC.md`
+- `.supports/TASKS.md`
+
+实现建议：
+
+- 使用 FastAPI 挂载静态文件，建议路径为 `GET /ui` 或 `GET /` 重定向到前端入口；实际路径由 Claude 结合现有 `app/main.py` 最小改动决定。
+- 前端使用原生 HTML、CSS、JavaScript，不引入 React、Vue、Vite、Tailwind、前端路由或复杂状态管理。
+- 表单字段与 `AnalysisRequest` 保持一致：
+  - `calendar_type`，默认 `solar`，可显示 `lunar` 但提示当前阶段不支持；
+  - `birth_datetime`；
+  - `gender`；
+  - `birth_place`；
+  - `timezone`，默认可填 `Asia/Shanghai`；
+  - `themes`，支持 `career`、`relationship`、`self_understanding`；
+  - `include_followup_questions`；
+  - `include_markdown_report`。
+- 前端通过 `fetch("/api/v1/ziwei/analyze")` 调用后端，不绕过 API，不直接调用 LLM。
+- 页面展示：
+  - 加载态；
+  - API 错误信息；
+  - `chart.chart_id`、`chart.source`、`chart.summary`；
+  - `analysis.summary`；
+  - `analysis.theme_analyses`；
+  - `followup_questions`；
+  - `report_markdown`，第一阶段可用 `<pre>` 展示原始 Markdown，不要求引入 Markdown 渲染库。
+- 页面必须明确提示：当前排盘结果仍为 stub，仅用于验证分析流程，不代表真实紫微排盘已经完成。
+- UI 风格应克制、清晰、偏工具化，避免营销页、复杂视觉资产和不必要动效。
+
+测试要求由 Claude 执行：
+
+- 静态入口可访问，返回 200。
+- 静态 CSS/JS 可访问，返回 200。
+- API 原有测试继续通过。
+- 如添加静态路由或重定向，覆盖对应行为。
+- 不新增真实外部 LLM 调用；测试环境继续强制使用 mock provider。
+
+验收关注：
+
+- 是否保持 v0.1 小而清晰，不引入复杂前端工程。
+- 前端是否只调用后端 API，不直接参与排盘或 LLM 调用。
+- 是否清晰标注 `chart.source = "stub"`。
+- 是否正确展示免责声明和错误信息。
+- 是否同步更新 `.supports/ARCHITECTURE.md`、`.supports/API_SPEC.md` 或其他受影响文档。
+
 ## Claude 执行提示词
 
 ```text
@@ -397,6 +463,59 @@ feature/v0.1-real-llm-client
 - 关键架构决策；
 - 单元测试命令和结果；
 - 手动真实 LLM 验证命令和脱敏结果；
+- 未完成事项或风险。
+
+Codex 只负责后续 code review 和验收，不参与测试执行。
+```
+
+## Claude 执行提示词：Branch 6 简单静态前端
+
+```text
+你负责开发和测试 mingmax v0.1 Branch 6：简单静态前端界面。开始前必须阅读 AGENTS.md 和 .supports/ 下的所有规范文档。
+
+建议分支：
+feature/v0.1-static-frontend
+
+请在 feature/v0.1-real-llm-client 合并后的基线上创建该分支。如果当前基线尚未合并，请先等待项目负责人确认基线。
+
+目标：
+为现有 POST /api/v1/ziwei/analyze 提供一个轻量浏览器界面，用于验证出生信息输入、分析选项、请求状态、错误提示和报告展示闭环。
+
+硬性约束：
+1. 不引入 React、Vue、Vite、Tailwind、前端路由、复杂状态管理或复杂前端构建体系。
+2. 使用 FastAPI 提供静态 HTML/CSS/JS 页面。
+3. 前端只调用后端 /api/v1/ziwei/analyze，不直接调用 LLM，不参与排盘，不写业务分析逻辑。
+4. 紫微排盘仍由 ZiweiChartEngine 完成。当前 chart.source 仍是 stub，前端必须清晰展示这一点，不能暗示已经完成真实紫微排盘。
+5. 不实现用户系统、历史记录、支付、复杂前端、向量数据库或任务队列。
+6. 不提交真实 .env、API Key、token 或本机私密配置。
+7. 如涉及架构、API 展示或开发命令变化，必须更新对应 .supports/ 文档。
+
+建议实现：
+- 新增 app/web/static/index.html。
+- 新增 app/web/static/styles.css。
+- 新增 app/web/static/app.js。
+- 如有需要，新增 app/web/__init__.py。
+- 在 app/main.py 挂载静态文件，建议提供 /ui 页面入口，避免影响已有 /api/v1/* 路由。
+- 表单字段覆盖 calendar_type、birth_datetime、gender、birth_place、timezone、themes、include_followup_questions、include_markdown_report。
+- calendar_type 默认 solar；可以显示 lunar 选项，但要提示 v0.1 当前不支持 lunar。
+- 使用 fetch("/api/v1/ziwei/analyze") 调用 API。
+- 展示 chart.chart_id、chart.source、chart.summary、analysis.summary、analysis.theme_analyses、followup_questions 和 report_markdown。
+- report_markdown 第一阶段可以用 pre 展示原始 Markdown，不需要引入 Markdown 渲染库。
+- 页面风格保持克制、工具化、清晰，不做营销页。
+
+测试要求：
+- 单元测试或 API 测试覆盖 /ui 或静态入口返回 200。
+- 覆盖 CSS/JS 静态资源返回 200。
+- 原有 API 测试继续通过。
+- 测试环境继续强制 MINGMAX_LLM_PROVIDER=mock，不真实调用外部 LLM。
+
+完成后请输出：
+- 分支名；
+- commit 列表；
+- 修改文件列表；
+- 前端入口 URL；
+- 关键架构决策；
+- 测试命令和测试结果；
 - 未完成事项或风险。
 
 Codex 只负责后续 code review 和验收，不参与测试执行。
@@ -644,6 +763,57 @@ uv run pytest --cov=app  # 99% coverage, 290 statements, 3 miss
 - 已支持 `chat_completions` 与 `responses` wire API；真实网关兼容性仍需按所用 provider 手动验证
 - 默认超时 30s 可能不够，生产环境建议 120s+，已在 .env.example 中注释说明
 - chart.source 仍为 `stub`，LLM 会如实识别并说明数据不足
+
+**请求 Codex review。**
+
+---
+
+### Branch 6: `feature/v0.1-static-frontend`
+
+**分支名：** `feature/v0.1-static-frontend`
+
+**Commit 列表：**
+
+1. `feat: add static frontend for analysis UI`
+
+**修改文件列表：**
+
+- `app/web/__init__.py` — Web 模块初始化
+- `app/web/static/index.html` — 前端入口页面（含表单、结果展示、stub 提示、免责声明）
+- `app/web/static/styles.css` — 克制工具化样式
+- `app/web/static/app.js` — 前端逻辑（表单提交、API 调用、结果渲染、错误展示）
+- `app/main.py` — 新增静态文件挂载和根路径重定向
+- `tests/test_frontend_static.py` — 前端静态资源测试（7 项）
+- `.supports/ARCHITECTURE.md` — 新增 Web 层目录结构和职责说明
+- `.supports/API_SPEC.md` — 新增静态前端路由和约束
+
+**关键架构决策：**
+
+- 使用 FastAPI `StaticFiles` 挂载静态资源，路径 `/static/`
+- 根路径 `GET /` 307 重定向到 `/static/index.html`
+- 前端使用原生 HTML/CSS/JS，不引入 React、Vue、Vite、Tailwind 等复杂前端框架
+- 前端只通过 `fetch("/api/v1/ziwei/analyze")` 调用后端 API，不绕过 API 层
+- 页面明确标注当前排盘结果为 stub
+- 页面展示免责声明
+- 支持加载态、API 错误信息、命盘信息、分析摘要、主题分析、追问问题、Markdown 报告
+- 农历选项在页面提示当前不支持，提交时阻止
+
+**测试命令和结果：**
+
+```bash
+uv run black --check app/ tests/ main.py   # 46 files unchanged
+uv run isort --check-only app/ tests/ main.py  # no changes
+uv run flake8 app/ tests/ main.py --max-line-length=120  # 0 errors
+
+uv run pytest -v   # 77 passed in 0.20s
+uv run pytest --cov=app  # 98% coverage, 365 statements, 9 miss
+```
+
+**未完成事项或风险：**
+
+- 无。本分支仅实现静态前端界面，不涉及后端业务逻辑变更。
+- Markdown 报告当前以 `<pre>` 原始文本展示，未引入 Markdown 渲染库（符合 v0.1 简单要求）。
+- 前端时区偏移计算使用浏览器 Intl API，未来如需精确到分钟偏移可增强。
 
 **请求 Codex review。**
 

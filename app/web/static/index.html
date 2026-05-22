@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>mingmax - 紫微斗数分析</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header>
+    <h1>mingmax</h1>
+    <p>紫微斗数分析</p>
+  </header>
+
+  <main>
+    <section id="stub-notice">
+      <strong>注意：</strong>当前排盘结果为 stub 数据，仅用于验证分析流程，不代表真实紫微排盘已完成。
+    </section>
+
+    <form id="analyze-form">
+      <fieldset>
+        <legend>出生信息</legend>
+
+        <label for="calendar_type">历法类型</label>
+        <select id="calendar_type" name="calendar_type">
+          <option value="solar" selected>公历 (solar)</option>
+          <option value="lunar">农历 (lunar) — 当前阶段不支持</option>
+        </select>
+
+        <label for="birth_datetime">出生日期时间</label>
+        <input type="datetime-local" id="birth_datetime" name="birth_datetime" required>
+
+        <label for="gender">性别</label>
+        <select id="gender" name="gender" required>
+          <option value="male">男</option>
+          <option value="female">女</option>
+          <option value="unknown">未知</option>
+        </select>
+
+        <label for="birth_place">出生地点</label>
+        <input type="text" id="birth_place" name="birth_place" placeholder="Shanghai, China" required>
+
+        <label for="timezone">时区</label>
+        <input type="text" id="timezone" name="timezone" value="Asia/Shanghai" required>
+      </fieldset>
+
+      <fieldset>
+        <legend>分析选项</legend>
+
+        <label>分析主题（可多选）</label>
+        <div class="checkbox-group">
+          <label><input type="checkbox" name="themes" value="career"> 事业</label>
+          <label><input type="checkbox" name="themes" value="relationship"> 感情</label>
+          <label><input type="checkbox" name="themes" value="self_understanding"> 自我认知</label>
+        </div>
+
+        <label class="checkbox-label">
+          <input type="checkbox" id="include_followup_questions" name="include_followup_questions" checked>
+          生成追问问题
+        </label>
+
+        <label class="checkbox-label">
+          <input type="checkbox" id="include_markdown_report" name="include_markdown_report" checked>
+          生成 Markdown 报告
+        </label>
+      </fieldset>
+
+      <button type="submit" id="submit-btn">开始分析</button>
+    </form>
+
+    <section id="loading" class="hidden">
+      <p>正在分析中，请稍候...</p>
+    </section>
+
+    <section id="error-section" class="hidden">
+      <h2>错误</h2>
+      <pre id="error-message"></pre>
+    </section>
+
+    <section id="result-section" class="hidden">
+      <h2>分析结果</h2>
+
+      <details id="chart-details">
+        <summary>命盘信息</summary>
+        <div id="chart-info"></div>
+      </details>
+
+      <h3>分析摘要</h3>
+      <pre id="analysis-summary"></pre>
+
+      <div id="theme-analyses-section" class="hidden">
+        <h3>主题分析</h3>
+        <div id="theme-analyses"></div>
+      </div>
+
+      <div id="followup-section" class="hidden">
+        <h3>追问问题</h3>
+        <ul id="followup-questions"></ul>
+      </div>
+
+      <div id="report-section" class="hidden">
+        <h3>Markdown 报告</h3>
+        <pre id="report-markdown"></pre>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>本分析仅供文化研究、娱乐体验与自我反思参考，不构成医学、法律、财务、心理诊断或人生决策依据。</p>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
