@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from app.engines.chart_normalizer import ChartNormalizer
-from app.engines.ziwei_chart_engine import UnsupportedCalendarTypeError, ZiweiChartEngine
+from app.engines.ziwei_chart_engine import UnsupportedCalendarTypeError, UnsupportedGenderError, ZiweiChartEngine
 from app.schemas.birth import BirthInfo, Gender
 
 
@@ -132,7 +132,7 @@ def test_engine_rejects_unknown_gender() -> None:
         timezone="Asia/Shanghai",
     )
 
-    with pytest.raises(Exception, match="not supported"):
+    with pytest.raises(UnsupportedGenderError, match="not supported"):
         engine.build_chart(birth)
 
 

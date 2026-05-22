@@ -22,6 +22,13 @@ class BirthInfo(BaseModel):
     birth_place: str = Field(min_length=1, max_length=200)
     timezone: str = Field(min_length=1, max_length=100)
 
+    @field_validator("birth_datetime")
+    @classmethod
+    def validate_birth_datetime_timezone(cls, v: datetime) -> datetime:
+        if v.tzinfo is None or v.utcoffset() is None:
+            raise ValueError("birth_datetime must be timezone-aware")
+        return v
+
     @field_validator("timezone")
     @classmethod
     def validate_timezone(cls, v: str) -> str:

@@ -2,6 +2,7 @@ from zoneinfo import ZoneInfo
 
 from iztro_py import astro
 
+from app.engines.errors import UnsupportedGenderError
 from app.schemas.birth import BirthInfo, Gender
 from app.schemas.chart import FourHua, Palace, RawChart, Star
 
@@ -11,10 +12,6 @@ GENDER_MAP = {
 }
 
 SOURCE = "iztro_py"
-
-
-class UnsupportedGenderError(ValueError):
-    pass
 
 
 def _get_local_date_hour(birth_info: BirthInfo) -> tuple[str, int]:
