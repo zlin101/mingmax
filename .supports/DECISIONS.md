@@ -179,3 +179,15 @@ BirthInfo -> ZiweiChartEngine -> RawChart -> NormalizedChart -> ZiweiAnalysisAge
   - 私密样本只允许本地手动验证，不进入仓库或自动化测试；
   - 验证产物只记录脱敏摘要和 issue 统计；
   - 前端增强推迟到端到端链路可信度提高之后。
+
+### D025: 前端命盘核验视图继续使用原生静态前端
+
+- 状态：已确认
+- 背景：Branch 11 已完成真实链路验证与输出校准，下一步需要让用户和开发者直观看到后端实际排出的命盘。
+- 决策：Branch 12 在现有 `app/web/static/` 原生 HTML/CSS/JS 前端中实现轻量 4x4 十二宫核验视图，不引入 React、Vue、Vite、Tailwind 或新的前端构建链。
+- 约束：
+  - 前端只消费 API 返回的 `chart` 字段，不计算排盘、对宫、三方四正或空宫借星；
+  - 不保存出生信息历史，不生成分享链接，不写入 localStorage/sessionStorage/cookie；
+  - 缺失的 `five_elements_class`、`lunar_info` 等字段必须显示为暂未提供，不得前端编造；
+  - 该视图定位为排盘核验工具，不是营销页或复杂产品重构。
+- 影响：后续如果需要更复杂前端框架，应另开决策，不得在 Branch 12 中顺手引入。
