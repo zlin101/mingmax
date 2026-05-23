@@ -5,6 +5,8 @@ def build_chart_facts(chart: NormalizedChart) -> dict:
     by_index: dict[int, Palace] = {p.index: p for p in chart.palaces}
 
     palace_facts = []
+    evidence_index: list[dict] = []
+
     for p in chart.palaces:
         major_stars = [s.name for s in p.stars if s.category == "major"]
         minor_stars = [s.name for s in p.stars if s.category == "minor"]
@@ -20,6 +22,64 @@ def build_chart_facts(chart: NormalizedChart) -> dict:
                 val = getattr(p.four_hua, field, None)
                 if val:
                     mutagens[label] = val
+
+        # Evidence: palace existence
+        evidence_index.append({"id": f"palace:{p.index}", "type": "palace", "label": f"{p.name}(index {p.index})"})
+
+        # Evidence: major stars
+        for star_name in major_stars:
+            evidence_index.append(
+                {"id": f"star:{p.index}:{star_name}", "type": "star", "label": f"{star_name}在{p.name}"}
+            )
+
+        # Evidence: mutagens in palace
+        for label, star_name in mutagens.items():
+            field_map = {"化禄": "hua_lu", "化权": "hua_quan", "化科": "hua_ke", "化忌": "hua_ji"}
+            field = field_map[label]
+            evidence_index.append(
+                {
+                    "id": f"mutagen:{p.index}:{field}:{star_name}",
+                    "type": "mutagen",
+                    "label": f"{star_name}{label}在{p.name}",
+                }
+            )
+
+        # Evidence: opposite palace
+        if p.opposite_palace_index is not None:
+            evidence_index.append(
+                {
+                    "id": f"relation:{p.index}:opposite:{p.opposite_palace_index}",
+                    "type": "relation",
+                    "label": (
+                        f"{p.name}对宫{by_index[p.opposite_palace_index].name}"
+                        if p.opposite_palace_index in by_index
+                        else f"{p.name}对宫index {p.opposite_palace_index}"
+                    ),
+                }
+            )
+
+        # Evidence: san fang si zheng
+        if p.san_fang_si_zheng_indexes:
+            sfsz_key = ",".join(str(i) for i in p.san_fang_si_zheng_indexes)
+            evidence_index.append(
+                {
+                    "id": f"relation:{p.index}:sfsz:{sfsz_key}",
+                    "type": "relation",
+                    "label": f"{p.name}三方四正",
+                }
+            )
+
+        # Evidence: borrowed stars
+        if p.is_empty and p.borrowed_major_stars:
+            for borrowed_star in p.borrowed_major_stars:
+                from_idx = p.borrowed_from_index
+                evidence_index.append(
+                    {
+                        "id": f"borrowed:{p.index}:from:{from_idx}:{borrowed_star}",
+                        "type": "borrowed",
+                        "label": f"{p.name}(空宫)借{borrowed_star}",
+                    }
+                )
 
         fact: dict = {
             "index": p.index,
@@ -62,6 +122,7 @@ def build_chart_facts(chart: NormalizedChart) -> dict:
         ),
         "four_hua": chart.four_hua.model_dump(exclude_none=True) if chart.four_hua else {},
         "palaces": palace_facts,
+        "evidence_index": evidence_index,
     }
     if chart.five_elements_class:
         result["five_elements_class"] = chart.five_elements_class

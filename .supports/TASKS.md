@@ -118,4 +118,217 @@
 
 ## 当前任务
 
-等待 Codex 验收 Branch 12 后由项目负责人压缩。
+### Branch 13: LLM 分析能力增强：分析框架、证据绑定与安全校验
+
+- 建议分支名：`feature/v0.1-llm-analysis-evidence-framework`
+- 负责人分工：Claude 负责开发、测试、commit、push；Codex 负责 code review 和验收；merge 只由项目负责人执行。
+
+#### 背景与反思
+
+Branch 12 之后，mingmax 已经具备完整主链路：
+
+```text
+BirthInfo -> ZiweiChartEngine -> RawChart -> NormalizedChart -> chart_facts -> Prompt -> LLM -> 前端展示
+```
+
+当前问题不再是“能否把真实模型接上”或“用户能否看到命盘”，而是 LLM 输出质量仍不够稳定：模型可能泛化分析、引用不精确、把星曜和宫位绑定错，或在证据不足时给出过强判断。
+
+文墨天机提示词的优点是会把完整命盘信息交给模型，并明确要求模型按十二宫、四化、主题领域、建议和免责声明组织分析。mingmax 可以借鉴这种“完整命盘上下文 + 明确分析路径”的方式，但不能照搬其多流派大而全、逐年吉凶、重大事件时间范围等要求，因为当前 v0.1 还没有确定性支持大限、流年、流月、流日、流时，也不能让 LLM 自行补算这些内容。
+
+`/home/liam/git/ziwei-doushu` 的 TS 项目仍有可借鉴点：小型确定性规则层、星曜/宫位/四化的结构化知识组织、证据先行再解释的产品思路。但本任务不迁移其前端框架、不照搬断语、不做 SEO/合盘/会员等超出 v0.1 的能力。
+
+本轮核心判断：
+
+> 不是让 LLM 更会“算”，而是让 LLM 在程序给定的命盘事实和有限知识框架内，更稳定地组织分析，并让程序能校验它是否乱引证据。
+
+#### 目标
+
+1. 为 `chart_facts` 增加稳定、可引用的 evidence id，让宫位、星曜、四化、对宫、三方四正、空宫借星等事实可被 LLM 引用和程序校验。
+2. 强化 `analysis_evidence_validator`，从“全局名称是否存在”升级到“宫位-星曜/宫位-四化绑定是否真实”。
+3. 升级 Prompt 分析框架，借鉴文墨天机“完整命盘上下文 + 多维度分析路径”的优点，但保持 mingmax 的结构化证据、安全边界和 v0.1 范围。
+4. 可选增加轻量、低争议的紫微信息组织层，辅助 LLM 解释宫位、十四主星、四化等基础含义；不得加入宿命化断语。该项不是本分支硬性验收目标，只有在不扩大范围、不影响 evidence/validator 主线时才做。
+5. 保持 API 尽量兼容；除非必要，不在本任务中大改前端或响应结构。
+
+#### 非目标
+
+- 不实现大限、流年、流月、流日、流时计算。
+- 不要求 LLM 对未支持的限流信息做逐年分析。
+- 不引入 LangChain、LangGraph、CrewAI、向量数据库或复杂 Agent 框架。
+- 不引入 React、Vue、Next.js、Vite、Tailwind 或新的前端构建链。
+- 不复制文墨天机或 TS 项目的宿命化断语。
+- 不提交、打印或记录 `.supports/TEST_INFO_EVA.md` 中的个人信息、完整命盘文本或任何可识别隐私内容。
+
+#### 参考材料
+
+- 必读：
+  - `AGENTS.md`
+  - `.supports/PROJECT_CONTEXT.md`
+  - `.supports/DECISIONS.md`
+  - `.supports/ARCHITECTURE.md`
+  - `.supports/PROMPT_GUIDE.md`
+  - `.supports/API_SPEC.md`
+  - `.supports/DEVELOPMENT_GUIDE.md`
+  - `.supports/ZIWEI_TS_REFERENCE_REVIEW.md`
+- 可本地参考但不得提交内容：
+  - `.supports/TEST_INFO_EVA.md`
+- 参考项目：
+  - `/home/liam/git/ziwei-doushu/lib/ziwei/types.ts`
+  - `/home/liam/git/ziwei-doushu/lib/ziwei/patterns.ts`
+  - `/home/liam/git/ziwei-doushu/lib/ziwei/constants.ts`
+  - `/home/liam/git/ziwei-doushu/lib/ziwei/sihua.ts`
+
+#### 建议文件改动
+
+- 修改：`app/engines/chart_facts.py`
+  - 在现有 `chart_facts` 中增加 `evidence_index` 或等价结构。
+  - 每个证据项必须有稳定 id、类型、标签和可校验 payload。
+  - 建议 id 格式：
+    - `palace:<index>`
+    - `star:<palace_index>:<star_name>`
+    - `mutagen:<palace_index>:<hua_lu|hua_quan|hua_ke|hua_ji>:<star_name>`
+    - `relation:<palace_index>:opposite:<opposite_index>`
+    - `relation:<palace_index>:sfsz:<index_a>,<index_b>,<index_c>,<index_d>`
+    - `borrowed:<palace_index>:from:<opposite_index>:<star_name>`
+
+- 修改：`app/agents/analysis_evidence_validator.py`
+  - 基于 `chart_facts` 构建宫位、星曜、四化、关系的查验索引。
+  - 能发现以下错误：
+    - LLM 说“某星在某宫”，但该星不在该宫；
+    - LLM 说“某宫有某化曜”，但该宫没有该四化；
+    - LLM 引用不存在的 evidence id；
+    - LLM 把对宫、三方四正关系说错；
+    - LLM 使用大限、流年、流月、流日、流时等当前未支持事实。
+  - 保持纯函数，不调用外部 LLM。
+
+- 修改：`app/prompts/ziwei_analysis.md`
+  - 要求模型按固定分析路径输出：
+    - 命盘结构摘要；
+    - 较强信号；
+    - 弱假设；
+    - 宫位交叉验证；
+    - 不确定性；
+    - 安全提醒。
+  - 每条强信号和交叉验证必须引用 evidence id 或明确引用 `chart_facts` 中的宫位/星曜/四化事实。
+  - 明确禁止对未提供的大限、流年、流月、流日、流时进行分析。
+
+- 修改：`app/prompts/theme_analysis.md`
+  - 主题分析必须只使用主题相关宫位及其三方四正/对宫证据。
+  - 证据不足时必须输出“当前结构不足以支持强结论”或等价克制表达。
+
+- 修改：`app/prompts/followup_questions.md`
+  - 追问必须服务于校准解释方向，不得暗示用户必然遭遇某类事件。
+  - `related_chart_factors` 应优先引用 evidence id 或结构化事实标签。
+
+- 修改：`app/prompts/report.md`
+  - 报告结构保留免责声明。
+  - 新增“证据依据/不确定性”要求。
+  - 禁止输出未支持的限流逐年判断。
+
+- 可新增：`app/knowledge/ziwei/basic.py`
+  - 这是可选增强，不是本分支必须交付。
+  - 只放低争议、中性、可安全改写的基础解释素材。
+  - 建议先覆盖：
+    - 十二宫主题含义；
+    - 十四主星中性关键词；
+    - 四化通用解释；
+    - 证据强弱说明。
+  - 不放“必然”“注定”“大凶”“一定离婚/破财/疾病”等断语。
+
+- 修改：`app/agents/ziwei_analysis_agent.py`
+  - 如果引入基础知识层，只能作为 prompt context 的辅助材料。
+  - 不得让 Agent 推算命盘事实。
+
+- 修改或新增测试：
+  - `tests/test_chart_facts.py`
+  - `tests/test_analysis_evidence_validator.py`
+  - `tests/test_prompt_loading.py`
+  - 视实现情况新增 `tests/test_ziwei_knowledge.py`
+
+- 更新文档：
+  - `.supports/PROMPT_GUIDE.md`
+  - `.supports/ARCHITECTURE.md`
+  - `.supports/DECISIONS.md`
+  - 如 API 响应结构发生变化，必须同步更新 `.supports/API_SPEC.md`。
+
+#### 建议 TDD 步骤
+
+执行优先级：
+
+1. 必做：`chart_facts` evidence index。
+2. 必做：validator 对 evidence id、宫星绑定、四化绑定、未支持时间层的校验。
+3. 必做：Prompt 分析框架和禁止项更新。
+4. 必做：MockLLMClient 与现有链路适配。
+5. 可选：基础知识层。只有前四项完成且测试稳定后才允许加入。
+
+1. 在 `tests/test_chart_facts.py` 中先写失败测试：
+   - `build_chart_facts()` 输出 `evidence_index`；
+   - 每个宫位有 `palace:<index>` 证据；
+   - 每个主星有 `star:<palace_index>:<star_name>` 证据；
+   - 每个四化有 `mutagen:<palace_index>:<field>:<star_name>` 证据；
+   - 对宫和三方四正关系有 relation 证据。
+
+2. 实现 `chart_facts` evidence index：
+   - 保持原有 `palaces`、`ming_palace`、`body_palace`、`four_hua` 字段兼容；
+   - 新增字段不应破坏现有前端和 API 测试。
+
+3. 在 `tests/test_analysis_evidence_validator.py` 中写失败测试：
+   - 引用不存在 evidence id 返回 `FABRICATED_EVIDENCE`；
+   - “紫微在夫妻宫”但紫微实际不在夫妻宫时返回 `INVALID_STAR_PALACE_BINDING`；
+   - “夫妻宫有化忌”但实际没有时返回 `INVALID_MUTAGEN_PALACE_BINDING`；
+   - 输出“大限/流年/流月/流日/流时”但 `chart_facts` 未提供时返回 `UNSUPPORTED_TIME_LAYER_REFERENCE`；
+   - 安全表达和免责声明现有测试继续通过。
+
+4. 实现 validator 增强：
+   - 先从 evidence id 校验做起；
+   - 再做中文短语级宫星绑定识别；
+   - 识别能力保持保守，宁可少拦截，也不要误杀中性描述；
+   - 对难以确定的自然语言绑定可先 warning，不要随意 error。
+
+5. 更新 Prompt：
+   - 引导模型使用 evidence id；
+   - 引导模型按分析框架输出；
+   - 明确未支持范围；
+   - 保持 JSON-only 输出契约。
+
+6. 如新增基础知识层：
+   - 先写测试保证知识条目不包含禁止词；
+   - 知识层只提供中性关键词，不直接生成结论；
+   - Agent 只把相关基础知识作为辅助 context，不改变排盘事实。
+
+7. 更新 MockLLMClient：
+   - mock 输出应符合新 prompt 和 validator 要求；
+   - 不要让 mock 输出未支持的大限/流年内容。
+
+8. 更新文档：
+   - `PROMPT_GUIDE.md` 记录新分析框架和 evidence id 规则；
+   - `ARCHITECTURE.md` 记录 evidence index 和 validator 职责；
+   - `DECISIONS.md` 新增“LLM 分析必须基于 evidence id/结构化事实，不得分析未支持时间层”的决策；
+   - `TASKS.md` 在完成后记录测试摘要、遗留风险。
+
+#### 验收标准
+
+- `chart_facts` 中存在稳定 evidence index，且不破坏现有 API/前端消费。
+- Prompt 明确要求 LLM 使用结构化证据，不得分析未支持的大限/流年等时间层。
+- Validator 能校验 evidence id、宫星绑定、宫位四化绑定和未支持时间层引用。
+- Mock LLM 全链路仍可运行，输出不包含 stub/unsupported/time-layer 幻觉。
+- 基础知识层不是硬性验收项；若实现，必须只包含中性、低争议、安全表达素材，并有测试覆盖禁止词。
+- 私密样本文件仍未被 git 跟踪，测试和文档不得包含其中的个人信息或完整命盘文本。
+- 如真实 LLM 手动验证，记录只能是脱敏摘要和 issue 统计。
+
+#### 必跑命令
+
+```bash
+uv run black --check .
+uv run isort --check-only .
+uv run flake8 .
+uv run pytest -q
+```
+
+如修改前端静态文件，额外确认现有前端测试仍覆盖并通过。
+
+#### 风险与注意事项
+
+- 自然语言中的宫星绑定识别不应追求一次到位，先覆盖清晰模式，例如“<星曜>在<宫位>”“<宫位>见<星曜>”“<宫位>有<化曜>”。
+- 不要因为文墨天机提示词提到多流派，就让模型输出三合、飞星、河洛、钦天四化等当前程序没有确定性支持的内容。
+- 不要为了提升分析感而牺牲可验证性；所有结论应能回到 `chart_facts` 或基础知识层。
+- 如果发现需要改变公开 API 结构，必须先在 commit 中同步更新 `.supports/API_SPEC.md` 并说明兼容影响。

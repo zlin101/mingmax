@@ -191,3 +191,18 @@ BirthInfo -> ZiweiChartEngine -> RawChart -> NormalizedChart -> ZiweiAnalysisAge
   - 缺失的 `five_elements_class`、`lunar_info` 等字段必须显示为暂未提供，不得前端编造；
   - 该视图定位为排盘核验工具，不是营销页或复杂产品重构。
 - 影响：后续如果需要更复杂前端框架，应另开决策，不得在 Branch 12 中顺手引入。
+
+### D026: 证据 ID 体系与增强验证框架
+
+- 状态：已确认
+- 背景：Branch 13 在已有的基础验证器（伪造星曜/宫位/四化检测、绝对化表达检测、免责声明检查）基础上，进一步约束 LLM 输出的证据可追溯性和绑定一致性。
+- 决策：
+  - `chart_facts.evidence_index` 为每条结构化事实提供稳定 ID（palace/star/mutagen/relation/borrowed 类型），供 LLM 引用和验证器校验；
+  - 验证器新增：伪造证据 ID 检测、星曜-宫位绑定一致性检查、四化-宫位绑定一致性检查、不支持时间层检测；
+  - Prompt 层统一要求 LLM 引用证据 ID，禁止引用大限/流年等时间层，禁止绝对化表达，要求星曜/四化描述与 chart_facts 绑定一致；
+  - 报告新增"不确定性说明"章节。
+- 约束：
+  - 验证器保持纯函数、不调用外部 LLM；
+  - 证据 ID 格式在 `chart_facts.py` 中集中定义，验证器和 Prompt 通过字符串模式引用，不硬编码业务规则；
+  - 不引入知识库、格局规则库或命盘解读库，v0.1 仅做证据框架和约束层。
+- 影响：后续 LLM 输出质量和可追溯性提升；如果未来添加新证据类型，需同步更新 chart_facts、validator 和 Prompt。

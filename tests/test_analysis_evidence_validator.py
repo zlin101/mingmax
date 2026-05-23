@@ -31,6 +31,28 @@ def _chart_facts(
     }
 
 
+def _chart_facts_with_evidence() -> dict:
+    """chart_facts with a realistic evidence_index for evidence ID tests."""
+    facts = _chart_facts(
+        palaces=[
+            {"name": "命宫", "major_stars": ["紫微", "天府"], "mutagens": {"化禄": "紫微"}},
+            {"name": "兄弟宫", "major_stars": ["天机"], "mutagens": {}},
+        ]
+    )
+    facts["evidence_index"] = [
+        {"id": "palace:0", "type": "palace", "label": "命宫(index 0)"},
+        {"id": "palace:1", "type": "palace", "label": "兄弟宫(index 1)"},
+        {"id": "star:0:紫微", "type": "star", "label": "紫微在命宫"},
+        {"id": "star:0:天府", "type": "star", "label": "天府在命宫"},
+        {"id": "star:1:天机", "type": "star", "label": "天机在兄弟宫"},
+        {"id": "mutagen:0:hua_lu:紫微", "type": "mutagen", "label": "紫微化禄在命宫"},
+        {"id": "relation:0:opposite:6", "type": "relation", "label": "命宫对宫迁移宫"},
+        {"id": "relation:0:sfsz:0,4,6,8", "type": "relation", "label": "命宫三方四正"},
+        {"id": "borrowed:2:from:6:太阳", "type": "borrowed", "label": "官禄宫(空宫)借太阳"},
+    ]
+    return facts
+
+
 def _analysis(**overrides) -> AnalysisResult:
     defaults = {
         "summary": "测试分析摘要",
@@ -265,3 +287,214 @@ def test_validator_handles_none_uncertainty() -> None:
     )
     crash_issues = [i for i in issues if "None" in i.message]
     assert len(crash_issues) == 0
+
+
+# --- Enhanced validator: evidence_id, palace-star binding, mutagen binding, unsupported time layer ---
+
+
+def test_fabricated_evidence_id_star() -> None:
+    """star:5:贪狼 does not exist in evidence_index."""
+    facts = _chart_facts_with_evidence()
+    analysis = _analysis(strong_signals=["依据 star:5:贪狼（证据不存在）"])
+    issues = validate_analysis_output(
+        chart_facts=facts,
+        analysis=analysis,
+        theme_analyses=[],
+        followup_questions=[],
+        report_markdown=DISCLAIMER,
+    )
+    fabricated = [i for i in issues if i.code == "FABRICATED_EVIDENCE_ID"]
+    assert len(fabricated) >= 1
+
+
+def test_fabricated_evidence_id_palace() -> None:
+    """palace:99 does not exist in evidence_index."""
+    facts = _chart_facts_with_evidence()
+    analysis = _analysis(strong_signals=["依据 palace:99 观察到"])
+    issues = validate_analysis_output(
+        chart_facts=facts,
+        analysis=analysis,
+        theme_analyses=[],
+        followup_questions=[],
+        report_markdown=DISCLAIMER,
+    )
+    fabricated = [i for i in issues if i.code == "FABRICATED_EVIDENCE_ID"]
+    assert len(fabricated) >= 1
+
+
+def test_fabricated_evidence_id_mutagen() -> None:
+    """mutagen:0:hua_ji:贪狼 does not exist."""
+    facts = _chart_facts_with_evidence()
+    analysis = _analysis(strong_signals=["mutagen:0:hua_ji:贪狼 不存在"])
+    issues = validate_analysis_output(
+        chart_facts=facts,
+        analysis=analysis,
+        theme_analyses=[],
+        followup_questions=[],
+        report_markdown=DISCLAIMER,
+    )
+    fabricated = [i for i in issues if i.code == "FABRICATED_EVIDENCE_ID"]
+    assert len(fabricated) >= 1
+
+
+def test_fabricated_evidence_id_relation() -> None:
+    """relation:0:opposite:99 does not exist."""
+    facts = _chart_facts_with_evidence()
+    analysis = _analysis(strong_signals=["relation:0:opposite:99 不存在"])
+    issues = validate_analysis_output(
+        chart_facts=facts,
+        analysis=analysis,
+        theme_analyses=[],
+        followup_questions=[],
+        report_markdown=DISCLAIMER,
+    )
+    fabricated = [i for i in issues if i.code == "FABRICATED_EVIDENCE_ID"]
+    assert len(fabricated) >= 1
+
+
+def test_fabricated_evidence_id_borrowed() -> None:
+    """borrowed:99:from:0:紫微 does not exist."""
+    facts = _chart_facts_with_evidence()
+    analysis = _analysis(strong_signals=["borrowed:99:from:0:紫微 不存在"])
+    issues = validate_analysis_output(
+        chart_facts=facts,
+        analysis=analysis,
+        theme_analyses=[],
+        followup_questions=[],
+        report_markdown=DISCLAIMER,
+    )
+    fabricated = [i for i in issues if i.code == "FABRICATED_EVIDENCE_ID"]
+    assert len(fabricated) >= 1
+
+
+def test_valid_evidence_id_palace_not_flagged() -> None:
+    """palace:0 exists in evidence_index and should not be flagged."""
+    facts = _chart_facts_with_evidence()
+    analysis = _analysis(strong_signals=["依据 palace:0 观察到"])
+    issues = validate_analysis_output(
+        chart_facts=facts,
+        analysis=analysis,
+        theme_analyses=[],
+        followup_questions=[],
+        report_markdown=DISCLAIMER,
+    )
+    fabricated = [i for i in issues if i.code == "FABRICATED_EVIDENCE_ID"]
+    assert len(fabricated) == 0
+
+
+def test_valid_evidence_id_star_not_flagged() -> None:
+    """star:0:紫微 exists in evidence_index and should not be flagged."""
+    facts = _chart_facts_with_evidence()
+    analysis = _analysis(strong_signals=["依据 star:0:紫微 观察到"])
+    issues = validate_analysis_output(
+        chart_facts=facts,
+        analysis=analysis,
+        theme_analyses=[],
+        followup_questions=[],
+        report_markdown=DISCLAIMER,
+    )
+    fabricated = [i for i in issues if i.code == "FABRICATED_EVIDENCE_ID"]
+    assert len(fabricated) == 0
+
+
+def test_valid_evidence_id_mutagen_not_flagged() -> None:
+    """mutagen:0:hua_lu:紫微 exists in evidence_index."""
+    facts = _chart_facts_with_evidence()
+    analysis = _analysis(strong_signals=["依据 mutagen:0:hua_lu:紫微 观察到"])
+    issues = validate_analysis_output(
+        chart_facts=facts,
+        analysis=analysis,
+        theme_analyses=[],
+        followup_questions=[],
+        report_markdown=DISCLAIMER,
+    )
+    fabricated = [i for i in issues if i.code == "FABRICATED_EVIDENCE_ID"]
+    assert len(fabricated) == 0
+
+
+def test_invalid_star_palace_binding() -> None:
+    """天机 is in the chart (兄弟宫) but NOT in 夫妻宫."""
+    facts = _chart_facts(
+        palaces=[
+            {"name": "命宫", "major_stars": ["紫微"], "mutagens": {}},
+            {"name": "兄弟宫", "major_stars": ["天机"], "mutagens": {}},
+            {"name": "夫妻宫", "major_stars": ["太阳"], "mutagens": {}},
+        ]
+    )
+    analysis = _analysis(strong_signals=["天机在夫妻宫为较强信号"])
+    issues = validate_analysis_output(
+        chart_facts=facts,
+        analysis=analysis,
+        theme_analyses=[],
+        followup_questions=[],
+        report_markdown=DISCLAIMER,
+    )
+    binding = [i for i in issues if i.code == "INVALID_STAR_PALACE_BINDING"]
+    assert len(binding) >= 1
+
+
+def test_valid_star_palace_binding_not_flagged() -> None:
+    facts = _chart_facts(
+        palaces=[
+            {"name": "命宫", "major_stars": ["紫微"], "mutagens": {}},
+        ]
+    )
+    analysis = _analysis(strong_signals=["紫微在命宫为较强信号"])
+    issues = validate_analysis_output(
+        chart_facts=facts,
+        analysis=analysis,
+        theme_analyses=[],
+        followup_questions=[],
+        report_markdown=DISCLAIMER,
+    )
+    binding = [i for i in issues if i.code == "INVALID_STAR_PALACE_BINDING"]
+    assert len(binding) == 0
+
+
+def test_invalid_mutagen_palace_binding() -> None:
+    """天机 has 化忌 at chart level but NOT in 命宫."""
+    facts = _chart_facts(
+        palaces=[
+            {"name": "命宫", "major_stars": ["紫微"], "mutagens": {}},
+            {"name": "夫妻宫", "major_stars": ["天机"], "mutagens": {"化忌": "天机"}},
+        ]
+    )
+    analysis = _analysis(weak_hypotheses=["命宫天机化忌可能暗示压力"])
+    issues = validate_analysis_output(
+        chart_facts=facts,
+        analysis=analysis,
+        theme_analyses=[],
+        followup_questions=[],
+        report_markdown=DISCLAIMER,
+    )
+    binding = [i for i in issues if i.code == "INVALID_MUTAGEN_PALACE_BINDING"]
+    assert len(binding) >= 1
+
+
+def test_unsupported_time_layer_reference() -> None:
+    facts = _chart_facts()
+    analysis = _analysis(strong_signals=["大限显示事业压力"])
+    issues = validate_analysis_output(
+        chart_facts=facts,
+        analysis=analysis,
+        theme_analyses=[],
+        followup_questions=[],
+        report_markdown=DISCLAIMER,
+    )
+    unsupported = [i for i in issues if i.code == "UNSUPPORTED_TIME_LAYER"]
+    assert len(unsupported) >= 1
+
+
+@pytest.mark.parametrize("term", ["大限", "流年", "流月", "流日", "流时"])
+def test_unsupported_time_layer_variants(term: str) -> None:
+    facts = _chart_facts()
+    analysis = _analysis(summary=f"{term}运行趋势分析")
+    issues = validate_analysis_output(
+        chart_facts=facts,
+        analysis=analysis,
+        theme_analyses=[],
+        followup_questions=[],
+        report_markdown=DISCLAIMER,
+    )
+    unsupported = [i for i in issues if i.code == "UNSUPPORTED_TIME_LAYER"]
+    assert len(unsupported) >= 1
