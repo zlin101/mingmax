@@ -73,17 +73,33 @@ self_understanding
     "summary": "Normalized ziwei chart summary",
     "ming_palace_index": 3,
     "body_palace_index": 7,
+    "five_elements_class": null,
+    "lunar_info": null,
     "palaces": [
       {
         "index": 0,
         "name": "命宫",
-        "major_stars": ["紫微"],
+        "heavenly_stem": "甲",
+        "earthly_branch": "子",
+        "stars": [
+          {"name": "紫微", "brightness": "庙", "category": "major"},
+          {"name": "天府", "brightness": "旺", "category": "major"}
+        ],
+        "four_hua": null,
+        "is_body_palace": false,
         "opposite_palace_index": 6,
         "san_fang_si_zheng_indexes": [0, 4, 6, 8],
-        "is_empty": false
+        "is_empty": false,
+        "borrowed_from_index": null,
+        "borrowed_major_stars": null
       }
     ],
-    "four_hua": {}
+    "four_hua": {
+      "hua_lu": "贪狼",
+      "hua_quan": "太阴",
+      "hua_ke": "右弼",
+      "hua_ji": "天机"
+    }
   },
   "analysis": {
     "summary": "基于当前结构化命盘的总体观察。",

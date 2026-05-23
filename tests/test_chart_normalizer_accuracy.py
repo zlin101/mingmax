@@ -188,3 +188,22 @@ def test_normalizer_non_empty_palace_no_borrowing() -> None:
             assert p.is_empty is False
             assert p.borrowed_from_index is None
             assert p.borrowed_major_stars is None
+
+
+def test_normalizer_uses_palace_index_not_list_position() -> None:
+    palaces = [
+        Palace(index=6, name="迁移宫", stars=[_star("天府", "major")]),
+        Palace(index=0, name="命宫", stars=[]),
+    ]
+    raw = RawChart(
+        source="test",
+        chart_id="test-unordered",
+        birth_info_snapshot={},
+        palaces=palaces,
+    )
+    normalized = ChartNormalizer().normalize(raw)
+    assert normalized.ming_palace_index == 0
+    ming = next(p for p in normalized.palaces if p.name == "命宫")
+    assert ming.is_empty is True
+    assert ming.borrowed_from_index == 6
+    assert ming.borrowed_major_stars == ["天府"]

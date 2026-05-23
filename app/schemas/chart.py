@@ -46,3 +46,4 @@ class NormalizedChart(BaseModel):
     ming_palace_index: int | None = None
     body_palace_index: int | None = None
     five_elements_class: str | None = None
+    lunar_info: dict | None = None
