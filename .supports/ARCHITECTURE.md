@@ -126,7 +126,20 @@ Branch 1-6 允许使用可预测的 Engine stub 和 Mock/真实 LLM Client 建�
 
 ### 结构化证据层
 
-`app/engines/chart_facts.py` 的 `build_chart_facts()` 从 `NormalizedChart` 生成结构化事实字典，包含命宫/身宫定位、四化、每个宫位的主星/辅星/杂曜/化曜/对宫/三方四正/空宫借星。Agent 通过此函数构建传给 LLM 的 context，不再传递原始 chart JSON。
+`app/engines/chart_facts.py` 的 `build_chart_facts()` 从 `NormalizedChart` 生成结构化事实字典，包含命宫/身宫定位、四化、每个宫位的主星/辅星/杂曜/化曜/对宫/三方四正/空宫借星，以及 `evidence_index`（稳定证据 ID 列表）。Agent 通过此函数构建传给 LLM 的 context，不再传递原始 chart JSON。
+
+### 证据 ID 体系
+
+`chart_facts.evidence_index` 为每条结构化事实提供稳定 ID，供 LLM 引用和验证器校验：
+
+| 类型 | ID 格式 | 示例 |
+|------|---------|------|
+| 宫位 | `palace:<idx>` | `palace:0` |
+| 星曜 | `star:<idx>:<name>` | `star:0:紫微` |
+| 四化 | `mutagen:<idx>:<field>:<name>` | `mutagen:0:hua_lu:紫微` |
+| 对宫 | `relation:<idx>:opposite:<opp>` | `relation:0:opposite:6` |
+| 三方四正 | `relation:<idx>:sfsz:<idxes>` | `relation:0:sfsz:0,4,6,8` |
+| 借星 | `borrowed:<idx>:from:<opp>:<name>` | `borrowed:8:from:2:太阴` |
 
 ### 对比工具
 
@@ -142,7 +155,16 @@ Branch 1-6 允许使用可预测的 Engine stub 和 Mock/真实 LLM Client 建�
 
 ### LLM 输出证据一致性检查
 
-`app/agents/analysis_evidence_validator.py` 提供 `validate_analysis_output()`，纯函数，检查 LLM 输出是否引用 `chart_facts` 中不存在的星曜、宫位、四化，是否包含绝对化/恐吓式表达，报告是否包含免责声明。返回 `list[ValidationIssue]`，不调用外部 LLM。
+`app/agents/analysis_evidence_validator.py` 提供 `validate_analysis_output()`，纯函数，检查 LLM 输出是否：
+- 引用 `chart_facts` 中不存在的星曜、宫位、四化
+- 引用不存在的 evidence_index ID
+- 星曜-宫位绑定不一致（如"XX在YY宫"但实际不在）
+- 四化-宫位绑定不一致（如"YY宫XX化Z"但实际不在）
+- 引用大限、流年、流月、流日、流时等不支持的时间层
+- 包含绝对化/恐吓式表达
+- 报告是否包含免责声明
+
+返回 `list[ValidationIssue]`，不调用外部 LLM。ValidationIssue code 包括 FABRICATED_STAR、FABRICATED_PALACE、FABRICATED_MUTAGEN、FABRICATED_EVIDENCE_ID、INVALID_STAR_PALACE_BINDING、INVALID_MUTAGEN_PALACE_BINDING、UNSUPPORTED_TIME_LAYER、UNSAFE_EXPRESSION、MISSING_DISCLAIMER。
 
 ### 前端命盘核验视图
 
