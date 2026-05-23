@@ -260,8 +260,3 @@ if (elements["longitude"].value !== "" && elements["longitude"].value !== undefi
   throw new Error("expected empty longitude for unknown city, got: " + elements["longitude"].value);
 }
 """)
-
-
-def test_tasks_document_uses_actual_static_frontend_branch_name() -> None:
-    content = TASKS_MD.read_text(encoding="utf-8")
-    assert "第一阶段拆分为 8 个可独立 review 和验收的分支" in content

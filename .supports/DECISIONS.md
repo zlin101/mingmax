@@ -100,7 +100,7 @@ BirthInfo -> ZiweiChartEngine -> RawChart -> NormalizedChart -> ZiweiAnalysisAge
   - `iztro-py` 必须封装在 Engine/Provider 层，不得泄漏到 API、Service、Agent 或 LLM 层；
   - 引入 `iztro-py` 必须使用 `uv add "iztro-py>=0.3.4,<1"` 管理，并提交 `pyproject.toml` 与 `uv.lock`；
   - `iztro-py` 旧项目用法为 `astro.by_solar_hour(solar_date, hour, gender)`，其中 `gender` 只支持 `男` / `女`；当前 `Gender.unknown` 应返回清晰不支持错误或等价错误，不得静默降级为任一性别；
-  - 当前 v0.1 先使用出生地时区下的本地日期与小时，不实现真太阳时校正；如后续需要真太阳时，应作为独立任务处理；
+  - Branch 7 当时先使用出生地时区下的本地日期与小时，不实现真太阳时校正；Branch 9 已按 D020 补充真太阳时校正；
   - `iztro-py` metadata 标注 Python 3.8-3.12，但旧项目 Python 3.13 环境可安装；mingmax 要求 Python >=3.14，因此 Branch 7 必须通过 `uv add` 和完整测试验证 Python 3.14 兼容性；
   - 若 v0.1 真实引擎只支持部分规则，必须在 `.supports/ARCHITECTURE.md`、`.supports/API_SPEC.md` 或 `.supports/TASKS.md` 中记录支持范围和未支持边界。
 - 影响：前端和 API 响应不得继续固定暗示当前一定是 stub；应根据 `chart.source` 动态展示排盘来源。
@@ -148,3 +148,22 @@ BirthInfo -> ZiweiChartEngine -> RawChart -> NormalizedChart -> ZiweiAnalysisAge
 - 状态：已确认
 - 决策：不同紫微排盘系统的宫位编号起点不同（如从子起 vs 从寅起），`chart_diff` 将 index 差异归类为 warning 而非 error。major_stars、palace name、four_hua 差异仍为 error。
 - 影响：使用 chart_diff 对比时，index warning 不影响 `is_match` 判定。
+
+### D022: 借鉴 TS 项目时只吸收结构化事实设计
+
+- 状态：已确认
+- 背景：`/home/liam/git/ziwei-doushu` 的 TS 项目在命盘结构、宫位关系、空宫借星、三方四正、星曜分类、前端核验视图等方面有可借鉴设计，但其产品定位、前端框架、SEO 内容和部分断语不符合 mingmax v0.1 范围。
+- 决策：Branch 10 只吸收“确定性命盘结构与证据层”的设计思想，优先在 Engine/Normalizer 层补齐可验证事实，再供 LLM 解释。
+- 约束：
+  - 不迁移 Next.js / React / Tailwind；
+  - 不复制参考项目的宿命化断语、合盘知识库或 SEO 内容页；
+  - 不让 LLM 计算命宫、身宫、四化、对宫、三方四正、空宫借星等确定性关系；
+  - 不一次性移植大型格局规则库，后续如做规则层必须从小型、可测试、低争议规则开始；
+  - `.supports/TEST_INFO_EVA.md` 等私密样本仍不得入库或写入测试 fixture。
+- 影响：后续 LLM 输出质量优化和前端核验视图应基于 `chart_facts` / `chart_evidence` 等结构化事实，而不是要求模型从原始宫位列表中自行推理。
+
+### D023: 宫位关系和结构化证据属于 Engine 层
+
+- 状态：已确认
+- 决策：`chart_relations.py`（对宫、三方四正、空宫借星）和 `chart_facts.py`（结构化证据提取）属于 Engine 层。Normalizer 在标准化时填充宫位关系字段，Agent 通过 `build_chart_facts()` 生成传给 LLM 的 context。
+- 影响：Agent 不再直接传递原始 `NormalizedChart` JSON，而是传递只包含结构化事实的 `chart_facts`。LLM 不得重新推算任何确定性关系。

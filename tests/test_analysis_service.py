@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timedelta, timezone
 
 from app.agents.ziwei_analysis_agent import ZiweiAnalysisAgent
@@ -89,3 +90,19 @@ async def test_service_analysis_has_no_mock_placeholders() -> None:
         assert ta.uncertainty != "mock"
     for fq in result.followup_questions:
         assert fq.reason != "mock"
+
+
+def test_agent_context_uses_chart_facts_not_raw_chart() -> None:
+    engine = ZiweiChartEngine()
+    normalizer = ChartNormalizer()
+    raw = engine.build_chart(_birth_info())
+    chart = normalizer.normalize(raw)
+    agent = ZiweiAnalysisAgent(MockLLMClient())
+    context = agent._build_context(chart)
+    parsed = json.loads(context)
+    assert "ming_palace" in parsed
+    assert "four_hua" in parsed
+    assert "palaces" in parsed
+    for p in parsed["palaces"]:
+        assert "opposite_palace" in p
+        assert "san_fang_si_zheng" in p

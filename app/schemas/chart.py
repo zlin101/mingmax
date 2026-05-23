@@ -22,6 +22,11 @@ class Palace(BaseModel):
     stars: list[Star] = Field(default_factory=list)
     four_hua: FourHua | None = None
     is_body_palace: bool = False
+    opposite_palace_index: int | None = None
+    san_fang_si_zheng_indexes: list[int] | None = None
+    is_empty: bool | None = None
+    borrowed_from_index: int | None = None
+    borrowed_major_stars: list[str] | None = None
 
 
 class RawChart(BaseModel):
@@ -38,3 +43,6 @@ class NormalizedChart(BaseModel):
     summary: str
     palaces: list[Palace] = Field(default_factory=list)
     four_hua: FourHua | None = None
+    ming_palace_index: int | None = None
+    body_palace_index: int | None = None
+    five_elements_class: str | None = None
