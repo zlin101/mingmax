@@ -144,6 +144,30 @@
   var reportSection = document.getElementById("report-section");
   var reportMarkdown = document.getElementById("report-markdown");
 
+  var chartGrid = document.getElementById("chart-grid");
+  var chartSummary = document.getElementById("chart-summary");
+  var palaceDetail = document.getElementById("palace-detail");
+  var palaceDetailContent = document.getElementById("palace-detail-content");
+
+  // iztro palace index to earthly branch grid position (1-based CSS grid)
+  // index 0=寅..11=丑, arranged clockwise around a 4x4 grid
+  var INDEX_TO_GRID = [
+    { row: 4, col: 1 }, // 0: 寅
+    { row: 3, col: 1 }, // 1: 卯
+    { row: 2, col: 1 }, // 2: 辰
+    { row: 1, col: 1 }, // 3: 巳
+    { row: 1, col: 2 }, // 4: 午
+    { row: 1, col: 3 }, // 5: 未
+    { row: 1, col: 4 }, // 6: 申
+    { row: 2, col: 4 }, // 7: 酉
+    { row: 3, col: 4 }, // 8: 戌
+    { row: 4, col: 4 }, // 9: 亥
+    { row: 4, col: 3 }, // 10: 子
+    { row: 4, col: 2 }, // 11: 丑
+  ];
+
+  var currentChart = null;
+
   function hide(element) {
     element.classList.add("hidden");
   }
@@ -241,6 +265,281 @@
     };
   }
 
+  function _addSummaryItem(container, label, value) {
+    var span = document.createElement("span");
+    span.className = "summary-item";
+    var labelEl = document.createElement("span");
+    labelEl.className = "summary-label";
+    labelEl.textContent = label;
+    span.appendChild(labelEl);
+    var valueEl = document.createElement("span");
+    valueEl.className = "summary-value";
+    valueEl.textContent = value;
+    span.appendChild(valueEl);
+    container.appendChild(span);
+  }
+
+  function renderChartSummary(chart) {
+    chartSummary.textContent = "";
+
+    _addSummaryItem(chartSummary, "来源：", chart.source || "N/A");
+    _addSummaryItem(chartSummary, "Chart ID：", chart.chart_id || "N/A");
+
+    var palaces = chart.palaces || [];
+    var palaceByIndex = {};
+    for (var i = 0; i < palaces.length; i++) {
+      palaceByIndex[palaces[i].index] = palaces[i];
+    }
+
+    var mingPalace = chart.ming_palace_index != null ? palaceByIndex[chart.ming_palace_index] : null;
+    var bodyPalace = chart.body_palace_index != null ? palaceByIndex[chart.body_palace_index] : null;
+
+    _addSummaryItem(chartSummary, "命宫：", mingPalace ? mingPalace.name + "（" + (mingPalace.earthly_branch || "") + "）" : "N/A");
+    _addSummaryItem(chartSummary, "身宫：", bodyPalace ? bodyPalace.name + "（" + (bodyPalace.earthly_branch || "") + "）" : "N/A");
+    _addSummaryItem(chartSummary, "五行局：", chart.five_elements_class || "暂未提供");
+    _addSummaryItem(chartSummary, "农历：", chart.lunar_info ? JSON.stringify(chart.lunar_info) : "暂未提供");
+  }
+
+  function renderChartGrid(chart) {
+    chartGrid.innerHTML = "";
+    currentChart = chart;
+    hide(palaceDetail);
+
+    var palaces = chart.palaces || [];
+    var palaceByIndex = {};
+    for (var i = 0; i < palaces.length; i++) {
+      palaceByIndex[palaces[i].index] = palaces[i];
+    }
+
+    for (var idx = 0; idx < 12; idx++) {
+      var pos = INDEX_TO_GRID[idx];
+      var palace = palaceByIndex[idx];
+      var cell = document.createElement("div");
+      cell.className = "palace-cell";
+      cell.setAttribute("tabindex", "0");
+      cell.setAttribute("data-index", String(idx));
+      cell.style.gridRow = String(pos.row);
+      cell.style.gridColumn = String(pos.col);
+
+      if (palace) {
+        cell.appendChild(buildPalaceCellContent(palace));
+      }
+
+      cell.addEventListener("click", onPalaceClick);
+      cell.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          this.click();
+        }
+      });
+
+      chartGrid.appendChild(cell);
+    }
+
+    var center = document.createElement("div");
+    center.className = "center-cell";
+    center.innerHTML = '<div class="center-title">mingmax</div><div class="center-info">紫微斗数命盘</div>';
+    chartGrid.appendChild(center);
+  }
+
+  function buildPalaceCellContent(palace) {
+    var frag = document.createDocumentFragment();
+
+    var nameEl = document.createElement("div");
+    nameEl.className = "palace-name";
+    nameEl.textContent = palace.name;
+    frag.appendChild(nameEl);
+
+    var branch = (palace.heavenly_stem || "") + (palace.earthly_branch || "");
+    if (branch) {
+      var branchEl = document.createElement("div");
+      branchEl.className = "palace-branch";
+      branchEl.textContent = branch;
+      frag.appendChild(branchEl);
+    }
+
+    if (palace.name === "命宫") {
+      var b = document.createElement("span");
+      b.className = "badge badge-ming";
+      b.textContent = "命";
+      frag.appendChild(b);
+    }
+    if (palace.is_body_palace) {
+      var b = document.createElement("span");
+      b.className = "badge badge-body";
+      b.textContent = "身";
+      frag.appendChild(b);
+    }
+
+    var stars = palace.stars || [];
+    var majors = [];
+    var minorCount = 0;
+    for (var i = 0; i < stars.length; i++) {
+      if (stars[i].category === "major") majors.push(stars[i]);
+      else minorCount++;
+    }
+
+    var starsEl = document.createElement("div");
+    starsEl.className = "stars";
+    for (var i = 0; i < majors.length; i++) {
+      var span = document.createElement("span");
+      span.className = "star-name";
+      span.textContent = majors[i].name;
+      starsEl.appendChild(span);
+    }
+    if (minorCount > 0) {
+      var span = document.createElement("span");
+      span.className = "minor-count";
+      span.textContent = "+" + minorCount;
+      starsEl.appendChild(span);
+    }
+    frag.appendChild(starsEl);
+
+    if (palace.four_hua) {
+      var fh = palace.four_hua;
+      if (fh.hua_lu) { var b = document.createElement("span"); b.className = "badge badge-hua-lu"; b.textContent = "禄"; frag.appendChild(b); }
+      if (fh.hua_quan) { var b = document.createElement("span"); b.className = "badge badge-hua-quan"; b.textContent = "权"; frag.appendChild(b); }
+      if (fh.hua_ke) { var b = document.createElement("span"); b.className = "badge badge-hua-ke"; b.textContent = "科"; frag.appendChild(b); }
+      if (fh.hua_ji) { var b = document.createElement("span"); b.className = "badge badge-hua-ji"; b.textContent = "忌"; frag.appendChild(b); }
+    }
+
+    if (palace.is_empty) {
+      var b = document.createElement("span");
+      b.className = "badge badge-empty";
+      b.textContent = "空宫";
+      frag.appendChild(b);
+    }
+    if (palace.borrowed_major_stars && palace.borrowed_major_stars.length > 0) {
+      var b = document.createElement("span");
+      b.className = "badge badge-borrowed";
+      b.textContent = "借星";
+      frag.appendChild(b);
+    }
+
+    return frag;
+  }
+
+  function onPalaceClick(e) {
+    var cell = e.currentTarget;
+    var index = parseInt(cell.getAttribute("data-index"), 10);
+
+    var allCells = chartGrid.querySelectorAll(".palace-cell");
+    for (var i = 0; i < allCells.length; i++) {
+      allCells[i].classList.remove("selected");
+    }
+    cell.classList.add("selected");
+
+    if (currentChart) {
+      var palaces = currentChart.palaces || [];
+      var palace = null;
+      for (var i = 0; i < palaces.length; i++) {
+        if (palaces[i].index === index) { palace = palaces[i]; break; }
+      }
+      if (palace) renderPalaceDetail(palace);
+    }
+  }
+
+  function findPalaceByIndex(index) {
+    if (!currentChart) return null;
+    var palaces = currentChart.palaces || [];
+    for (var i = 0; i < palaces.length; i++) {
+      if (palaces[i].index === index) return palaces[i];
+    }
+    return null;
+  }
+
+  function _addDetailRow(container, label, text) {
+    var row = document.createElement("div");
+    row.className = "detail-row";
+    var labelEl = document.createElement("span");
+    labelEl.className = "detail-label";
+    labelEl.textContent = label;
+    row.appendChild(labelEl);
+    row.appendChild(document.createTextNode(text));
+    container.appendChild(row);
+  }
+
+  function _addStarsGroup(container, title, stars) {
+    var group = document.createElement("div");
+    group.className = "detail-stars-group";
+    var h5 = document.createElement("h5");
+    h5.textContent = title;
+    group.appendChild(h5);
+    var div = document.createElement("div");
+    var names = [];
+    for (var i = 0; i < stars.length; i++) {
+      names.push(stars[i].name + (stars[i].brightness ? "（" + stars[i].brightness + "）" : ""));
+    }
+    div.textContent = names.length > 0 ? names.join("、") : "无";
+    group.appendChild(div);
+    container.appendChild(group);
+  }
+
+  function renderPalaceDetail(palace) {
+    palaceDetailContent.textContent = "";
+
+    _addDetailRow(palaceDetailContent, "宫位：", palace.name + "（index " + palace.index + "）");
+
+    var branch = (palace.heavenly_stem || "") + (palace.earthly_branch || "");
+    _addDetailRow(palaceDetailContent, "天干地支：", branch || "暂未提供");
+
+    var stars = palace.stars || [];
+    var majors = [];
+    var minors = [];
+    var adjectives = [];
+    var others = [];
+    for (var i = 0; i < stars.length; i++) {
+      var cat = stars[i].category;
+      if (cat === "major") majors.push(stars[i]);
+      else if (cat === "minor") minors.push(stars[i]);
+      else if (cat === "adjective") adjectives.push(stars[i]);
+      else others.push(stars[i]);
+    }
+
+    _addStarsGroup(palaceDetailContent, "主星", majors);
+    if (minors.length > 0) _addStarsGroup(palaceDetailContent, "辅星", minors);
+    if (adjectives.length > 0) _addStarsGroup(palaceDetailContent, "杂曜", adjectives);
+    if (others.length > 0) _addStarsGroup(palaceDetailContent, "其他", others);
+
+    if (palace.opposite_palace_index != null) {
+      var opp = findPalaceByIndex(palace.opposite_palace_index);
+      _addDetailRow(palaceDetailContent, "对宫：", opp ? opp.name + "（index " + opp.index + "）" : "index " + palace.opposite_palace_index);
+    }
+    if (palace.san_fang_si_zheng_indexes) {
+      var names = [];
+      for (var i = 0; i < palace.san_fang_si_zheng_indexes.length; i++) {
+        var idx = palace.san_fang_si_zheng_indexes[i];
+        var p = findPalaceByIndex(idx);
+        names.push(p ? p.name : "index " + idx);
+      }
+      _addDetailRow(palaceDetailContent, "三方四正：", names.join("、"));
+    }
+
+    _addDetailRow(palaceDetailContent, "空宫：", palace.is_empty ? "是" : "否");
+
+    if (palace.is_empty && palace.borrowed_from_index != null) {
+      var borrowFrom = findPalaceByIndex(palace.borrowed_from_index);
+      _addDetailRow(palaceDetailContent, "借星来源：", borrowFrom ? borrowFrom.name + "（index " + borrowFrom.index + "）" : "index " + palace.borrowed_from_index);
+    }
+    if (palace.borrowed_major_stars && palace.borrowed_major_stars.length > 0) {
+      _addDetailRow(palaceDetailContent, "借入主星：", palace.borrowed_major_stars.join("、"));
+    }
+
+    if (palace.four_hua) {
+      var fh = palace.four_hua;
+      var huaList = [];
+      if (fh.hua_lu) huaList.push(fh.hua_lu + "化禄");
+      if (fh.hua_quan) huaList.push(fh.hua_quan + "化权");
+      if (fh.hua_ke) huaList.push(fh.hua_ke + "化科");
+      if (fh.hua_ji) huaList.push(fh.hua_ji + "化忌");
+      if (huaList.length > 0) {
+        _addDetailRow(palaceDetailContent, "本宫四化：", huaList.join("、"));
+      }
+    }
+
+    show(palaceDetail);
+  }
+
   function renderResult(data) {
     var chart = data.chart || {};
     var source = chart.source || "unknown";
@@ -252,6 +551,9 @@
       sourceText.textContent = source;
     }
     show(sourceNotice);
+
+    renderChartSummary(chart);
+    renderChartGrid(chart);
 
     chartInfo.textContent =
       "Chart ID: " +

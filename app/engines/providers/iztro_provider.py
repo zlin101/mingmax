@@ -80,15 +80,15 @@ def build_chart_from_iztro(birth_info: BirthInfo) -> RawChart:
 
         is_body = hasattr(p, "is_body_palace") and p.is_body_palace
 
-        palace_four_hua = None
+        hua_map: dict[str, str] = {}
         for s in p.major_stars:
             if s.mutagen:
                 mutagen_map = {"禄": "hua_lu", "权": "hua_quan", "科": "hua_ke", "忌": "hua_ji"}
                 field = mutagen_map.get(s.mutagen)
                 if field:
                     star_name = s.translate_name() if hasattr(s, "translate_name") else str(s.name)
-                    palace_four_hua = FourHua(**{field: star_name})
-                    break
+                    hua_map[field] = star_name
+        palace_four_hua = FourHua(**hua_map) if hua_map else None
 
         palaces.append(
             Palace(

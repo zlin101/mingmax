@@ -182,6 +182,31 @@ MINGMAX_LLM_TIMEOUT_SECONDS=30
 - 真实 LLM 失败时不得返回伪成功分析，应返回清晰错误。
 - `chart.source` 仍反映排盘来源；当前真实 LLM 接入不等于真实紫微排盘。
 
+## 前端核验视图使用的 chart 字段
+
+Branch 12 前端命盘核验视图消费以下 `chart` 字段：
+
+- `chart.source`：排盘来源，展示在来源标识和摘要区。
+- `chart.chart_id`：命盘唯一标识，展示在摘要区。
+- `chart.ming_palace_index` / `chart.body_palace_index`：命宫/身宫 index，前端据此查找对应宫位名称。
+- `chart.five_elements_class`：五行局，可能为 `null`，此时显示"暂未提供"。
+- `chart.lunar_info`：农历信息，可能为 `null`，此时显示"暂未提供"。
+- `chart.palaces[].index`：宫位 index（0-11），前端按固定映射将 index 映射到 4x4 网格位置。
+- `chart.palaces[].name`：宫位名称。
+- `chart.palaces[].heavenly_stem` / `earthly_branch`：天干地支。
+- `chart.palaces[].stars[].name` / `brightness` / `category`：星曜信息。
+- `chart.palaces[].four_hua`：宫位级四化（`hua_lu`/`hua_quan`/`hua_ke``/`hua_ji`），可能为 `null`。
+- `chart.palaces[].is_body_palace`：身宫标记。
+- `chart.palaces[].opposite_palace_index`：对宫 index。
+- `chart.palaces[].san_fang_si_zheng_indexes`：三方四正 indexes。
+- `chart.palaces[].is_empty`：空宫标记。
+- `chart.palaces[].borrowed_from_index` / `borrowed_major_stars`：借星来源。
+
+约束：
+
+- 前端只展示 API 返回的 chart 字段，不计算排盘关系（对宫、三方四正、空宫借星等均由后端提供）。
+- 前端按 `index` 到固定 earthly branch 网格位置的映射渲染 4x4 盘面，不依赖 earthly_branch 字符串定位。
+
 ## 静态前端路由
 
 ```text
