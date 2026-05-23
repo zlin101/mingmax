@@ -206,3 +206,20 @@ BirthInfo -> ZiweiChartEngine -> RawChart -> NormalizedChart -> ZiweiAnalysisAge
   - 证据 ID 格式在 `chart_facts.py` 中集中定义，验证器和 Prompt 通过字符串模式引用，不硬编码业务规则；
   - 不引入知识库、格局规则库或命盘解读库，v0.1 仅做证据框架和约束层。
 - 影响：后续 LLM 输出质量和可追溯性提升；如果未来添加新证据类型，需同步更新 chart_facts、validator 和 Prompt。
+
+### D027: 命盘事实完整度审计与 Prompt 输入增强
+
+- 状态：已确认
+- 背景：Branch 13 解决了 LLM 输出证据追踪问题，但 `chart_facts` 仍偏骨架化，与文墨天机的完整盘面信息相比信息密度不足。
+- 决策：
+  - 先审计"文墨天机字段 -> iztro-py 原始输出 -> RawChart/NormalizedChart -> chart_facts/Prompt"的信息流，补齐已经可获得但未传给 LLM 的事实；
+  - 将星曜从简单字符串升级为结构化事实对象，包含 `name`、`brightness`、`category`、`evidence_id`；
+  - 补充宫位天干地支（`heavenly_stem`、`earthly_branch`）到 `chart_facts`；
+  - 保持 `evidence_index` 与结构化星曜/四化事实中的 `evidence_id` 一致；
+  - Prompt 更新为"完整事实包"思路，描述可用的星曜亮度、宫位干支、四化、宫位关系等事实；
+  - 明确记录 v0.1 不支持的字段（大限、流年、四柱、神煞等），Prompt 和 validator 继续禁止 LLM 自行补算。
+- 约束：
+  - 不伪造或补算 provider 未提供的字段；
+  - 不改动公开 API 响应结构；
+  - 不引入知识库、格局规则库或复杂 Agent 框架。
+- 影响：LLM 输入信息密度提升，基于更完整的结构化事实进行分析；审计文档记录了已支持、可获得但未暴露、provider 未确认、v0.1 不支持的字段状态。
