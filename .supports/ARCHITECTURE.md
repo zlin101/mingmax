@@ -126,7 +126,11 @@ Branch 1-6 允许使用可预测的 Engine stub 和 Mock/真实 LLM Client 建�
 
 ### 结构化证据层
 
-`app/engines/chart_facts.py` 的 `build_chart_facts()` 从 `NormalizedChart` 生成结构化事实字典，包含命宫/身宫定位、四化、每个宫位的主星/辅星/杂曜/化曜/对宫/三方四正/空宫借星，以及 `evidence_index`（稳定证据 ID 列表）。Agent 通过此函数构建传给 LLM 的 context，不再传递原始 chart JSON。
+`app/engines/chart_facts.py` 的 `build_chart_facts()` 从 `NormalizedChart` 生成结构化事实字典，包含命宫/身宫定位、四化、每个宫位的主星/辅星/杂曜/化曜/天干地支/对宫/三方四正/空宫借星，以及 `evidence_index`（稳定证据 ID 列表）。Agent 通过此函数构建传给 LLM 的 context，不再传递原始 chart JSON。
+
+星曜以结构化对象形式提供：`major_star_facts`、`minor_star_facts`、`adjective_star_facts`，每个包含 `name`、`brightness`（亮度）、`category`（类别）、`evidence_id`（证据 ID）。证据 ID 格式：`star:<宫位索引>:<星名>`。
+
+宫位包含天干地支：`heavenly_stem`（天干）、`earthly_branch`（地支）。
 
 ### 证据 ID 体系
 

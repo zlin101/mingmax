@@ -31,6 +31,50 @@ Prompt 是 mingmax 的核心资产，必须独立管理。Prompt 不得大量硬
 | 三方四正 | `relation:<idx>:sfsz:<idxes>` | `relation:0:sfsz:0,4,6,8` |
 | 借星 | `borrowed:<idx>:from:<opp>:<name>` | `borrowed:8:from:2:太阴` |
 
+## chart_facts 完整事实包
+
+`chart_facts` 是本命盘的完整可用事实包，包含：
+
+### 宫位基础信息
+- `index`：宫位索引（0-11）
+- `name`：宫位名称
+- `heavenly_stem`：天干（如"甲"）
+- `earthly_branch`：地支（如"寅"）
+- `is_body_palace`：是否为身宫
+
+### 星曜结构化事实
+- `major_star_facts`：主星列表，每个星包含：
+  - `name`：星名
+  - `brightness`：亮度（庙/旺/得/利/平/陷）
+  - `category`：类别（major/minor/adjective）
+  - `evidence_id`：证据 ID（格式：`star:<宫位索引>:<星名>`）
+- `minor_star_facts`：辅星列表，结构同上
+- `adjective_star_facts`：杂曜列表，结构同上
+
+### 兼容性字段（向后兼容）
+- `major_stars`：主星名称字符串列表
+- `minor_stars`：辅星名称字符串列表
+- `adjective_stars`：杂曜名称字符串列表
+
+### 宫位四化
+- `mutagens`：该宫位的四化字典，如 `{"化禄": "紫微", "化忌": "天机"}`
+- 全局四化见 `four_hua` 字典
+
+### 宫位关系
+- `opposite_palace`：对宫名称
+- `san_fang_si_zheng`：三方四正宫位列表
+- `is_empty`：是否为空宫
+- `borrowed_from`：借星来源，包含 `palace_name` 和 `major_stars`
+
+### 命盘全局信息
+- `ming_palace`：命宫名称
+- `body_palace`：身宫名称
+- `five_elements_class`：五行局
+- `four_hua`：全局四化字典
+
+### 证据索引
+- `evidence_index`：所有结构化事实的证据 ID 和标签列表
+
 ## 证据一致性检查
 
 `app/agents/analysis_evidence_validator.py` 的 `validate_analysis_output()` 会在每次分析后检查：

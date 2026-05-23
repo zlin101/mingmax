@@ -412,6 +412,80 @@ def test_valid_evidence_id_mutagen_not_flagged() -> None:
     assert len(fabricated) == 0
 
 
+def test_valid_minor_star_evidence_id_not_flagged() -> None:
+    """minor star evidence ID should not be flagged as fabricated."""
+    from app.engines.chart_facts import build_chart_facts
+    from app.schemas.chart import NormalizedChart, Palace, Star
+
+    chart = NormalizedChart(
+        chart_id="test",
+        source="test",
+        summary="test",
+        palaces=[
+            Palace(
+                index=0,
+                name="命宫",
+                stars=[
+                    Star(name="左辅", brightness="旺", category="minor"),
+                ],
+                opposite_palace_index=6,
+                san_fang_si_zheng_indexes=[0, 4, 6, 8],
+                is_empty=False,
+            ),
+        ],
+        ming_palace_index=0,
+    )
+    chart_facts = build_chart_facts(chart)
+
+    analysis = _analysis(strong_signals=["依据 star:0:左辅 观察到"])
+    issues = validate_analysis_output(
+        chart_facts=chart_facts,
+        analysis=analysis,
+        theme_analyses=[],
+        followup_questions=[],
+        report_markdown=DISCLAIMER,
+    )
+    fabricated = [i for i in issues if i.code == "FABRICATED_EVIDENCE_ID"]
+    assert len(fabricated) == 0
+
+
+def test_valid_adjective_star_evidence_id_not_flagged() -> None:
+    """adjective star evidence ID should not be flagged as fabricated."""
+    from app.engines.chart_facts import build_chart_facts
+    from app.schemas.chart import NormalizedChart, Palace, Star
+
+    chart = NormalizedChart(
+        chart_id="test",
+        source="test",
+        summary="test",
+        palaces=[
+            Palace(
+                index=0,
+                name="命宫",
+                stars=[
+                    Star(name="天魁", brightness="得", category="adjective"),
+                ],
+                opposite_palace_index=6,
+                san_fang_si_zheng_indexes=[0, 4, 6, 8],
+                is_empty=False,
+            ),
+        ],
+        ming_palace_index=0,
+    )
+    chart_facts = build_chart_facts(chart)
+
+    analysis = _analysis(strong_signals=["依据 star:0:天魁 观察到"])
+    issues = validate_analysis_output(
+        chart_facts=chart_facts,
+        analysis=analysis,
+        theme_analyses=[],
+        followup_questions=[],
+        report_markdown=DISCLAIMER,
+    )
+    fabricated = [i for i in issues if i.code == "FABRICATED_EVIDENCE_ID"]
+    assert len(fabricated) == 0
+
+
 def test_invalid_star_palace_binding() -> None:
     """天机 is in the chart (兄弟宫) but NOT in 夫妻宫."""
     facts = _chart_facts(

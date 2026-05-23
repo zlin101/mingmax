@@ -1,4 +1,15 @@
-from app.schemas.chart import NormalizedChart, Palace
+from app.schemas.chart import NormalizedChart, Palace, Star
+
+
+def _build_structured_star_fact(star: Star, palace_index: int, palace_name: str) -> dict:
+    """Build structured star fact with name, brightness, category, and evidence_id."""
+    evidence_id = f"star:{palace_index}:{star.name}"
+    return {
+        "name": star.name,
+        "brightness": star.brightness,
+        "category": star.category,
+        "evidence_id": evidence_id,
+    }
 
 
 def build_chart_facts(chart: NormalizedChart) -> dict:
@@ -11,6 +22,14 @@ def build_chart_facts(chart: NormalizedChart) -> dict:
         major_stars = [s.name for s in p.stars if s.category == "major"]
         minor_stars = [s.name for s in p.stars if s.category == "minor"]
         adjective_stars = [s.name for s in p.stars if s.category == "adjective"]
+
+        # Structured star facts with brightness, category, and evidence_id
+        major_star_facts = [_build_structured_star_fact(s, p.index, p.name) for s in p.stars if s.category == "major"]
+        minor_star_facts = [_build_structured_star_fact(s, p.index, p.name) for s in p.stars if s.category == "minor"]
+        adjective_star_facts = [
+            _build_structured_star_fact(s, p.index, p.name) for s in p.stars if s.category == "adjective"
+        ]
+
         mutagens = {}
         if p.four_hua:
             for field, label in [
@@ -28,6 +47,18 @@ def build_chart_facts(chart: NormalizedChart) -> dict:
 
         # Evidence: major stars
         for star_name in major_stars:
+            evidence_index.append(
+                {"id": f"star:{p.index}:{star_name}", "type": "star", "label": f"{star_name}在{p.name}"}
+            )
+
+        # Evidence: minor stars
+        for star_name in minor_stars:
+            evidence_index.append(
+                {"id": f"star:{p.index}:{star_name}", "type": "star", "label": f"{star_name}在{p.name}"}
+            )
+
+        # Evidence: adjective stars
+        for star_name in adjective_stars:
             evidence_index.append(
                 {"id": f"star:{p.index}:{star_name}", "type": "star", "label": f"{star_name}在{p.name}"}
             )
@@ -85,11 +116,18 @@ def build_chart_facts(chart: NormalizedChart) -> dict:
             "index": p.index,
             "name": p.name,
             "major_stars": major_stars,
+            "major_star_facts": major_star_facts,
         }
+        if p.heavenly_stem:
+            fact["heavenly_stem"] = p.heavenly_stem
+        if p.earthly_branch:
+            fact["earthly_branch"] = p.earthly_branch
         if minor_stars:
             fact["minor_stars"] = minor_stars
+            fact["minor_star_facts"] = minor_star_facts
         if adjective_stars:
             fact["adjective_stars"] = adjective_stars
+            fact["adjective_star_facts"] = adjective_star_facts
         if mutagens:
             fact["mutagens"] = mutagens
         if p.is_body_palace:
