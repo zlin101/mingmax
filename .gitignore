@@ -160,6 +160,9 @@ venv.bak/
 # Private verification samples
 .supports/TEST_INFO_EVA.md
 
+# Local provider snapshots (contains potentially sensitive data)
+.local/
+
 # Spyder project settings
 .spyderproject
 .spyproject
