@@ -18,7 +18,6 @@ function makeElement(value) {
     checked: false,
     disabled: false,
     innerHTML: "",
-    textContent: "",
     className: "",
     classList: {
       add: function () {
@@ -71,6 +70,11 @@ function makeElement(value) {
       return [];
     },
   };
+  Object.defineProperty(el, 'textContent', {
+    get: function() { return this._tc !== undefined ? this._tc : ""; },
+    set: function(v) { this._tc = v; if (v === "") this._children = []; },
+    configurable: true
+  });
   return el;
 }
 
@@ -122,6 +126,10 @@ const context = {
       var el = makeElement();
       el._isFragment = true;
       return el;
+    },
+    createTextNode: function (text) {
+      var node = { _tc: text, _children: [], _isText: true };
+      return node;
     },
   },
   Intl: Intl,
@@ -578,9 +586,17 @@ def test_frontend_shows_unavailable_for_missing_fields() -> None:
     """
         + """
     setTimeout(function () {
-      var html = elements["chart-summary"].innerHTML;
-      if (html.indexOf("暂未提供") < 0) {
-        throw new Error("expected '暂未提供' in chart summary for missing fields, got: " + html);
+      function collectText(el) {
+        var parts = [];
+        if (el._tc) parts.push(el._tc);
+        for (var i = 0; i < el._children.length; i++) {
+          parts.push(collectText(el._children[i]));
+        }
+        return parts.join(" ");
+      }
+      var text = collectText(elements["chart-summary"]);
+      if (text.indexOf("暂未提供") < 0) {
+        throw new Error("expected '暂未提供' in chart summary, got: " + text);
       }
     }, 0);
     """
@@ -595,6 +611,14 @@ def test_frontend_detail_panel_on_palace_click() -> None:
     """
         + """
     setTimeout(function () {
+      function collectText(el) {
+        var parts = [];
+        if (el._tc) parts.push(el._tc);
+        for (var i = 0; i < el._children.length; i++) {
+          parts.push(collectText(el._children[i]));
+        }
+        return parts.join(" ");
+      }
       var grid = elements["chart-grid"];
       var cells = grid.querySelectorAll(".palace-cell");
       var mingCell = null;
@@ -603,15 +627,15 @@ def test_frontend_detail_panel_on_palace_click() -> None:
       }
       if (!mingCell) throw new Error("ming cell not found");
       mingCell._handlers.click({ currentTarget: mingCell });
-      var detailHtml = elements["palace-detail-content"].innerHTML;
-      if (detailHtml.indexOf("命宫") < 0) {
-        throw new Error("expected '命宫' in detail, got: " + detailHtml);
+      var text = collectText(elements["palace-detail-content"]);
+      if (text.indexOf("命宫") < 0) {
+        throw new Error("expected '命宫' in detail, got: " + text);
       }
-      if (detailHtml.indexOf("天机") < 0) {
-        throw new Error("expected star '天机' in detail, got: " + detailHtml);
+      if (text.indexOf("天机") < 0) {
+        throw new Error("expected star '天机' in detail, got: " + text);
       }
-      if (detailHtml.indexOf("对宫") < 0) {
-        throw new Error("expected opposite palace info in detail, got: " + detailHtml);
+      if (text.indexOf("对宫") < 0) {
+        throw new Error("expected opposite palace info in detail, got: " + text);
       }
     }, 0);
     """
@@ -623,3 +647,74 @@ def test_frontend_no_localStorage_sessionStorage_writes() -> None:
     forbidden = ["localStorage", "sessionStorage", "cookie"]
     for term in forbidden:
         assert term not in js_code, f"Forbidden storage API found in app.js: {term}"
+
+
+def test_frontend_xss_safe_star_name_rendering() -> None:
+    """Malicious chart field content must appear as text, not interpreted as HTML."""
+    import json
+
+    malicious = '<img src=x onerror="alert(1)">'
+    data = _chart_response()
+    # Inject malicious content into star name, palace name, and chart source
+    data["chart"]["palaces"][0]["stars"][0]["name"] = malicious
+    data["chart"]["palaces"][0]["name"] = malicious
+    data["chart"]["source"] = malicious
+
+    _run_app_js(
+        "context.fetch = function () {"
+        "  return Promise.resolve({"
+        "    ok: true,"
+        "    status: 200,"
+        "    json: function () { return Promise.resolve(" + json.dumps(data) + "); }"
+        "  });"
+        "};"
+        + """
+    function collectText(el) {
+      var parts = [];
+      if (el._tc) parts.push(el._tc);
+      for (var i = 0; i < el._children.length; i++) {
+        parts.push(collectText(el._children[i]));
+      }
+      return parts.join(" ");
+    }
+    elements["analyze-form"].handler({ preventDefault: function () {} });
+    setTimeout(function () {
+      // Star name in palace cell must appear as text, not as HTML element
+      var grid = elements["chart-grid"];
+      var cells = grid.querySelectorAll(".palace-cell");
+      var targetCell = null;
+      for (var i = 0; i < cells.length; i++) {
+        if (cells[i].getAttribute("data-index") === "0") targetCell = cells[i];
+      }
+      if (!targetCell) throw new Error("cell index 0 not found");
+      var cellText = collectText(targetCell);
+      if (cellText.indexOf('"""
+        + malicious
+        + """') < 0) {
+        throw new Error("expected malicious star name as text in cell, got: " + cellText);
+      }
+      // innerHTML must NOT contain the raw <img tag (it stays as textContent)
+      var cellInner = targetCell.innerHTML;
+      if (cellInner && cellInner.indexOf("<img") >= 0) {
+        throw new Error("XSS: innerHTML contains raw <img tag");
+      }
+
+      // Chart summary must also show source as text
+      var summaryText = collectText(elements["chart-summary"]);
+      if (summaryText.indexOf('"""
+        + malicious
+        + """') < 0) {
+        throw new Error("expected malicious source as text in summary, got: " + summaryText);
+      }
+
+      // Palace detail panel must show palace name and star as text
+      targetCell._handlers.click({ currentTarget: targetCell });
+      var detailText = collectText(elements["palace-detail-content"]);
+      if (detailText.indexOf('"""
+        + malicious
+        + """') < 0) {
+        throw new Error("expected malicious content as text in detail, got: " + detailText);
+      }
+    }, 0);
+    """
+    )

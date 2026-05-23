@@ -265,24 +265,39 @@
     };
   }
 
+  function _addSummaryItem(container, label, value) {
+    var span = document.createElement("span");
+    span.className = "summary-item";
+    var labelEl = document.createElement("span");
+    labelEl.className = "summary-label";
+    labelEl.textContent = label;
+    span.appendChild(labelEl);
+    var valueEl = document.createElement("span");
+    valueEl.className = "summary-value";
+    valueEl.textContent = value;
+    span.appendChild(valueEl);
+    container.appendChild(span);
+  }
+
   function renderChartSummary(chart) {
-    var parts = [];
-    parts.push('<span class="summary-item"><span class="summary-label">来源：</span><span class="summary-value">' + (chart.source || "N/A") + "</span></span>");
-    parts.push('<span class="summary-item"><span class="summary-label">Chart ID：</span><span class="summary-value">' + (chart.chart_id || "N/A") + "</span></span>");
+    chartSummary.textContent = "";
+
+    _addSummaryItem(chartSummary, "来源：", chart.source || "N/A");
+    _addSummaryItem(chartSummary, "Chart ID：", chart.chart_id || "N/A");
 
     var palaces = chart.palaces || [];
-    var mingPalace = null;
-    var bodyPalace = null;
+    var palaceByIndex = {};
     for (var i = 0; i < palaces.length; i++) {
-      if (palaces[i].name === "命宫") mingPalace = palaces[i];
-      if (palaces[i].is_body_palace) bodyPalace = palaces[i];
+      palaceByIndex[palaces[i].index] = palaces[i];
     }
-    parts.push('<span class="summary-item"><span class="summary-label">命宫：</span><span class="summary-value">' + (mingPalace ? mingPalace.name + "（" + (mingPalace.earthly_branch || "") + "）" : "N/A") + "</span></span>");
-    parts.push('<span class="summary-item"><span class="summary-label">身宫：</span><span class="summary-value">' + (bodyPalace ? bodyPalace.name + "（" + (bodyPalace.earthly_branch || "") + "）" : "N/A") + "</span></span>");
-    parts.push('<span class="summary-item"><span class="summary-label">五行局：</span><span class="summary-value">' + (chart.five_elements_class || "暂未提供") + "</span></span>");
-    parts.push('<span class="summary-item"><span class="summary-label">农历：</span><span class="summary-value">' + (chart.lunar_info ? JSON.stringify(chart.lunar_info) : "暂未提供") + "</span></span>");
 
-    chartSummary.innerHTML = parts.join("");
+    var mingPalace = chart.ming_palace_index != null ? palaceByIndex[chart.ming_palace_index] : null;
+    var bodyPalace = chart.body_palace_index != null ? palaceByIndex[chart.body_palace_index] : null;
+
+    _addSummaryItem(chartSummary, "命宫：", mingPalace ? mingPalace.name + "（" + (mingPalace.earthly_branch || "") + "）" : "N/A");
+    _addSummaryItem(chartSummary, "身宫：", bodyPalace ? bodyPalace.name + "（" + (bodyPalace.earthly_branch || "") + "）" : "N/A");
+    _addSummaryItem(chartSummary, "五行局：", chart.five_elements_class || "暂未提供");
+    _addSummaryItem(chartSummary, "农历：", chart.lunar_info ? JSON.stringify(chart.lunar_info) : "暂未提供");
   }
 
   function renderChartGrid(chart) {
@@ -433,13 +448,40 @@
     return null;
   }
 
-  function renderPalaceDetail(palace) {
-    var html = "";
+  function _addDetailRow(container, label, text) {
+    var row = document.createElement("div");
+    row.className = "detail-row";
+    var labelEl = document.createElement("span");
+    labelEl.className = "detail-label";
+    labelEl.textContent = label;
+    row.appendChild(labelEl);
+    row.appendChild(document.createTextNode(text));
+    container.appendChild(row);
+  }
 
-    html += '<div class="detail-row"><span class="detail-label">宫位：</span>' + palace.name + "（index " + palace.index + "）</div>";
+  function _addStarsGroup(container, title, stars) {
+    var group = document.createElement("div");
+    group.className = "detail-stars-group";
+    var h5 = document.createElement("h5");
+    h5.textContent = title;
+    group.appendChild(h5);
+    var div = document.createElement("div");
+    var names = [];
+    for (var i = 0; i < stars.length; i++) {
+      names.push(stars[i].name + (stars[i].brightness ? "（" + stars[i].brightness + "）" : ""));
+    }
+    div.textContent = names.length > 0 ? names.join("、") : "无";
+    group.appendChild(div);
+    container.appendChild(group);
+  }
+
+  function renderPalaceDetail(palace) {
+    palaceDetailContent.textContent = "";
+
+    _addDetailRow(palaceDetailContent, "宫位：", palace.name + "（index " + palace.index + "）");
 
     var branch = (palace.heavenly_stem || "") + (palace.earthly_branch || "");
-    html += '<div class="detail-row"><span class="detail-label">天干地支：</span>' + (branch || "暂未提供") + "</div>";
+    _addDetailRow(palaceDetailContent, "天干地支：", branch || "暂未提供");
 
     var stars = palace.stars || [];
     var majors = [];
@@ -454,37 +496,33 @@
       else others.push(stars[i]);
     }
 
-    html += '<div class="detail-stars-group"><h5>主星</h5><div>' + (majors.length > 0 ? majors.map(function (s) { return s.name + (s.brightness ? "（" + s.brightness + "）" : ""); }).join("、") : "无") + "</div></div>";
-    if (minors.length > 0) {
-      html += '<div class="detail-stars-group"><h5>辅星</h5><div>' + minors.map(function (s) { return s.name; }).join("、") + "</div></div>";
-    }
-    if (adjectives.length > 0) {
-      html += '<div class="detail-stars-group"><h5>杂曜</h5><div>' + adjectives.map(function (s) { return s.name; }).join("、") + "</div></div>";
-    }
-    if (others.length > 0) {
-      html += '<div class="detail-stars-group"><h5>其他</h5><div>' + others.map(function (s) { return s.name; }).join("、") + "</div></div>";
-    }
+    _addStarsGroup(palaceDetailContent, "主星", majors);
+    if (minors.length > 0) _addStarsGroup(palaceDetailContent, "辅星", minors);
+    if (adjectives.length > 0) _addStarsGroup(palaceDetailContent, "杂曜", adjectives);
+    if (others.length > 0) _addStarsGroup(palaceDetailContent, "其他", others);
 
     if (palace.opposite_palace_index != null) {
       var opp = findPalaceByIndex(palace.opposite_palace_index);
-      html += '<div class="detail-row"><span class="detail-label">对宫：</span>' + (opp ? opp.name + "（index " + opp.index + "）" : "index " + palace.opposite_palace_index) + "</div>";
+      _addDetailRow(palaceDetailContent, "对宫：", opp ? opp.name + "（index " + opp.index + "）" : "index " + palace.opposite_palace_index);
     }
     if (palace.san_fang_si_zheng_indexes) {
-      var names = palace.san_fang_si_zheng_indexes.map(function (idx) {
+      var names = [];
+      for (var i = 0; i < palace.san_fang_si_zheng_indexes.length; i++) {
+        var idx = palace.san_fang_si_zheng_indexes[i];
         var p = findPalaceByIndex(idx);
-        return p ? p.name : "index " + idx;
-      });
-      html += '<div class="detail-row"><span class="detail-label">三方四正：</span>' + names.join("、") + "</div>";
+        names.push(p ? p.name : "index " + idx);
+      }
+      _addDetailRow(palaceDetailContent, "三方四正：", names.join("、"));
     }
 
-    html += '<div class="detail-row"><span class="detail-label">空宫：</span>' + (palace.is_empty ? "是" : "否") + "</div>";
+    _addDetailRow(palaceDetailContent, "空宫：", palace.is_empty ? "是" : "否");
 
     if (palace.is_empty && palace.borrowed_from_index != null) {
       var borrowFrom = findPalaceByIndex(palace.borrowed_from_index);
-      html += '<div class="detail-row"><span class="detail-label">借星来源：</span>' + (borrowFrom ? borrowFrom.name + "（index " + borrowFrom.index + "）" : "index " + palace.borrowed_from_index) + "</div>";
+      _addDetailRow(palaceDetailContent, "借星来源：", borrowFrom ? borrowFrom.name + "（index " + borrowFrom.index + "）" : "index " + palace.borrowed_from_index);
     }
     if (palace.borrowed_major_stars && palace.borrowed_major_stars.length > 0) {
-      html += '<div class="detail-row"><span class="detail-label">借入主星：</span>' + palace.borrowed_major_stars.join("、") + "</div>";
+      _addDetailRow(palaceDetailContent, "借入主星：", palace.borrowed_major_stars.join("、"));
     }
 
     if (palace.four_hua) {
@@ -495,11 +533,10 @@
       if (fh.hua_ke) huaList.push(fh.hua_ke + "化科");
       if (fh.hua_ji) huaList.push(fh.hua_ji + "化忌");
       if (huaList.length > 0) {
-        html += '<div class="detail-row"><span class="detail-label">本宫四化：</span>' + huaList.join("、") + "</div>";
+        _addDetailRow(palaceDetailContent, "本宫四化：", huaList.join("、"));
       }
     }
 
-    palaceDetailContent.innerHTML = html;
     show(palaceDetail);
   }
 
