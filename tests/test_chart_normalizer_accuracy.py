@@ -122,3 +122,88 @@ def test_normalizer_preserves_star_category() -> None:
         raw_cats = [s.category for s in rp.stars]
         norm_cats = [s.category for s in np.stars]
         assert norm_cats == raw_cats, f"Palace {rp.name}: star categories lost"
+
+
+def test_normalizer_sets_ming_palace_index() -> None:
+    raw = _raw_chart()
+    normalized = ChartNormalizer().normalize(raw)
+    assert normalized.ming_palace_index == 0
+
+
+def test_normalizer_sets_body_palace_index() -> None:
+    raw = _raw_chart()
+    normalized = ChartNormalizer().normalize(raw)
+    assert normalized.body_palace_index == 2
+
+
+def test_normalizer_sets_opposite_palace_index() -> None:
+    raw = _raw_chart()
+    normalized = ChartNormalizer().normalize(raw)
+    for p in normalized.palaces:
+        assert p.opposite_palace_index == (p.index + 6) % 12
+
+
+def test_normalizer_sets_san_fang_si_zheng() -> None:
+    raw = _raw_chart()
+    normalized = ChartNormalizer().normalize(raw)
+    for p in normalized.palaces:
+        assert p.san_fang_si_zheng_indexes is not None
+        assert len(p.san_fang_si_zheng_indexes) == 4
+        assert p.index in p.san_fang_si_zheng_indexes
+
+
+def test_normalizer_detects_empty_palace() -> None:
+    palaces = [
+        Palace(index=0, name="命宫", stars=[]),
+        Palace(index=1, name="兄弟宫", stars=[_star("天机", "major")]),
+        Palace(index=2, name="夫妻宫", stars=[_star("太阳", "major")]),
+        Palace(index=3, name="子女宫", stars=[_star("武曲", "major")]),
+        Palace(index=4, name="财帛宫", stars=[_star("天同", "major")]),
+        Palace(index=5, name="疾厄宫", stars=[_star("廉贞", "major")]),
+        Palace(index=6, name="迁移宫", stars=[_star("天府", "major")]),
+        Palace(index=7, name="交友宫", stars=[]),
+        Palace(index=8, name="官禄宫", stars=[]),
+        Palace(index=9, name="田宅宫", stars=[]),
+        Palace(index=10, name="福德宫", stars=[]),
+        Palace(index=11, name="父母宫", stars=[]),
+    ]
+    raw = RawChart(
+        source="test",
+        chart_id="test-empty",
+        birth_info_snapshot={},
+        palaces=palaces,
+    )
+    normalized = ChartNormalizer().normalize(raw)
+    assert normalized.palaces[0].is_empty is True
+    assert normalized.palaces[0].borrowed_from_index == 6
+    assert normalized.palaces[0].borrowed_major_stars == ["天府"]
+
+
+def test_normalizer_non_empty_palace_no_borrowing() -> None:
+    raw = _raw_chart()
+    normalized = ChartNormalizer().normalize(raw)
+    for p in normalized.palaces:
+        major = [s.name for s in p.stars if s.category == "major"]
+        if major:
+            assert p.is_empty is False
+            assert p.borrowed_from_index is None
+            assert p.borrowed_major_stars is None
+
+
+def test_normalizer_uses_palace_index_not_list_position() -> None:
+    palaces = [
+        Palace(index=6, name="迁移宫", stars=[_star("天府", "major")]),
+        Palace(index=0, name="命宫", stars=[]),
+    ]
+    raw = RawChart(
+        source="test",
+        chart_id="test-unordered",
+        birth_info_snapshot={},
+        palaces=palaces,
+    )
+    normalized = ChartNormalizer().normalize(raw)
+    assert normalized.ming_palace_index == 0
+    ming = next(p for p in normalized.palaces if p.name == "命宫")
+    assert ming.is_empty is True
+    assert ming.borrowed_from_index == 6
+    assert ming.borrowed_major_stars == ["天府"]

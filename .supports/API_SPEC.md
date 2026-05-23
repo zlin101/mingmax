@@ -71,7 +71,35 @@ self_understanding
     "chart_id": "sample-chart-id",
     "source": "iztro_py",
     "summary": "Normalized ziwei chart summary",
-    "palaces": []
+    "ming_palace_index": 3,
+    "body_palace_index": 7,
+    "five_elements_class": null,
+    "lunar_info": null,
+    "palaces": [
+      {
+        "index": 0,
+        "name": "命宫",
+        "heavenly_stem": "甲",
+        "earthly_branch": "子",
+        "stars": [
+          {"name": "紫微", "brightness": "庙", "category": "major"},
+          {"name": "天府", "brightness": "旺", "category": "major"}
+        ],
+        "four_hua": null,
+        "is_body_palace": false,
+        "opposite_palace_index": 6,
+        "san_fang_si_zheng_indexes": [0, 4, 6, 8],
+        "is_empty": false,
+        "borrowed_from_index": null,
+        "borrowed_major_stars": null
+      }
+    ],
+    "four_hua": {
+      "hua_lu": "贪狼",
+      "hua_quan": "太阴",
+      "hua_ke": "右弼",
+      "hua_ji": "天机"
+    }
   },
   "analysis": {
     "summary": "基于当前结构化命盘的总体观察。",
@@ -123,7 +151,9 @@ self_understanding
 - `report_markdown` 必须包含免责声明。
 - 单元测试不得真实调用外部 LLM API。
 - Branch 7 后 `chart.source` 应反映真实排盘 provider，例如 `iztro_py`；只有实际使用 stub 时才允许返回 `stub`。
-- 当前 v0.1 真实排盘使用 `birth_datetime` 在 `timezone` 对应地区的本地日期与小时，不实现真太阳时校正。
+- 当前 v0.1 真实排盘使用 `birth_datetime` 在 `timezone` 对应地区的本地日期与小时，默认始终进行真太阳时校正。
+- `NormalizedChart` 的 `palaces` 中每个宫位包含 `opposite_palace_index`、`san_fang_si_zheng_indexes`、`is_empty`、`borrowed_from_index`、`borrowed_major_stars` 等确定性关系字段。
+- Agent 传给 LLM 的 context 是 `chart_facts` 结构化证据，不是原始 chart JSON。
 
 ## 真实 LLM 运行时配置
 
