@@ -445,3 +445,63 @@ def test_chart_facts_star_brightness_none_when_unavailable() -> None:
 
     assert palace_facts["major_star_facts"][0]["brightness"] is None
     assert palace_facts["major_star_facts"][0]["name"] == "紫微"
+
+
+def test_evidence_index_includes_minor_and_adjective_stars() -> None:
+    """evidence_index should include minor and adjective stars, not just major stars."""
+    palaces = [
+        Palace(
+            index=0,
+            name="命宫",
+            stars=[
+                Star(name="紫微", brightness="庙", category="major"),
+                Star(name="左辅", brightness="旺", category="minor"),
+                Star(name="天魁", brightness="得", category="adjective"),
+            ],
+            opposite_palace_index=6,
+            san_fang_si_zheng_indexes=[0, 4, 6, 8],
+            is_empty=False,
+        ),
+    ]
+    chart = _chart(palaces=palaces)
+    facts = build_chart_facts(chart)
+
+    evidence_ids = [e["id"] for e in facts["evidence_index"]]
+
+    # Major star evidence should exist
+    assert "star:0:紫微" in evidence_ids
+
+    # Minor star evidence should exist
+    assert "star:0:左辅" in evidence_ids
+
+    # Adjective star evidence should exist
+    assert "star:0:天魁" in evidence_ids
+
+
+def test_minor_and_adjective_star_evidence_ids_match_facts() -> None:
+    """minor_star_facts and adjective_star_facts evidence_id should match evidence_index."""
+    palaces = [
+        Palace(
+            index=0,
+            name="命宫",
+            stars=[
+                Star(name="左辅", brightness="旺", category="minor"),
+                Star(name="天魁", brightness="得", category="adjective"),
+            ],
+            opposite_palace_index=6,
+            san_fang_si_zheng_indexes=[0, 4, 6, 8],
+            is_empty=False,
+        ),
+    ]
+    chart = _chart(palaces)
+    facts = build_chart_facts(chart)
+    palace_facts = facts["palaces"][0]
+    evidence_ids = [e["id"] for e in facts["evidence_index"]]
+
+    # Minor star fact evidence_id should be in evidence_index
+    minor_evidence_id = palace_facts["minor_star_facts"][0]["evidence_id"]
+    assert minor_evidence_id in evidence_ids
+
+    # Adjective star fact evidence_id should be in evidence_index
+    adj_evidence_id = palace_facts["adjective_star_facts"][0]["evidence_id"]
+    assert adj_evidence_id in evidence_ids

@@ -51,6 +51,18 @@ def build_chart_facts(chart: NormalizedChart) -> dict:
                 {"id": f"star:{p.index}:{star_name}", "type": "star", "label": f"{star_name}在{p.name}"}
             )
 
+        # Evidence: minor stars
+        for star_name in minor_stars:
+            evidence_index.append(
+                {"id": f"star:{p.index}:{star_name}", "type": "star", "label": f"{star_name}在{p.name}"}
+            )
+
+        # Evidence: adjective stars
+        for star_name in adjective_stars:
+            evidence_index.append(
+                {"id": f"star:{p.index}:{star_name}", "type": "star", "label": f"{star_name}在{p.name}"}
+            )
+
         # Evidence: mutagens in palace
         for label, star_name in mutagens.items():
             field_map = {"化禄": "hua_lu", "化权": "hua_quan", "化科": "hua_ke", "化忌": "hua_ji"}
@@ -116,10 +128,6 @@ def build_chart_facts(chart: NormalizedChart) -> dict:
         if adjective_stars:
             fact["adjective_stars"] = adjective_stars
             fact["adjective_star_facts"] = adjective_star_facts
-        if mutagens:
-            fact["minor_stars"] = minor_stars
-        if adjective_stars:
-            fact["adjective_stars"] = adjective_stars
         if mutagens:
             fact["mutagens"] = mutagens
         if p.is_body_palace:
