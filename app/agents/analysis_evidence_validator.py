@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
+from app.llm.mock import DISCLAIMER
 from app.schemas.analysis import AnalysisResult, FollowupQuestion, ThemeAnalysis
 
 
@@ -185,14 +186,14 @@ def validate_analysis_output(
 
     texts: list[str] = [
         analysis.summary,
-        analysis.safety_note,
+        *(t for t in [analysis.safety_note] if t),
         *analysis.strong_signals,
         *analysis.weak_hypotheses,
         *analysis.cross_checks,
     ]
 
     for ta in theme_analyses:
-        texts.extend([ta.theme, ta.uncertainty])
+        texts.extend([ta.theme, *(t for t in [ta.uncertainty] if t)])
         texts.extend(ta.observations)
         texts.extend(ta.supporting_evidence)
         texts.extend(ta.followup_questions)
@@ -208,7 +209,7 @@ def validate_analysis_output(
         report_issues = _check_all_text([report_markdown], valid_stars, valid_palaces, valid_mutagens)
         issues.extend(report_issues)
 
-        if "免责声明" not in report_markdown and "文化研究" not in report_markdown:
+        if DISCLAIMER not in report_markdown:
             issues.append(
                 ValidationIssue(
                     severity="error",

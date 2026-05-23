@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import json
 import sys
+from pathlib import Path
 
 from app.agents.analysis_evidence_validator import validate_analysis_output
 from app.agents.ziwei_analysis_agent import ZiweiAnalysisAgent
@@ -40,10 +41,16 @@ async def _run_pipeline(birth_info: BirthInfo, use_mock: bool) -> dict:
         llm = MockLLMClient()
     else:
         from app.core.config import Settings
-        from app.llm.openai_compatible import OpenAICompatibleClient
+        from app.llm.openai_compatible import OpenAICompatibleLLMClient
 
         settings = Settings()
-        llm = OpenAICompatibleClient(settings)
+        llm = OpenAICompatibleLLMClient(
+            api_key=settings.llm_api_key,
+            base_url=settings.llm_base_url,
+            model=settings.llm_model,
+            wire_api=settings.llm_wire_api,
+            timeout_seconds=settings.llm_timeout_seconds,
+        )
 
     agent = ZiweiAnalysisAgent(llm)
 
@@ -83,7 +90,12 @@ def main() -> None:
     parser.add_argument("--mock-llm", action="store_true", help="Use mock LLM instead of real")
     args = parser.parse_args()
 
-    with open(args.input_file, encoding="utf-8") as f:
+    input_path = Path(args.input_file)
+    if not input_path.exists():
+        print(f"ERROR: File not found: {args.input_file}", file=sys.stderr)
+        sys.exit(1)
+
+    with open(input_path, encoding="utf-8") as f:
         text = f.read()
 
     ref = _parse_reference(text)

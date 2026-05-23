@@ -1,6 +1,7 @@
 import pytest
 
 from app.agents.analysis_evidence_validator import validate_analysis_output
+from app.llm.mock import DISCLAIMER
 from app.schemas.analysis import AnalysisResult, FollowupQuestion, ThemeAnalysis
 
 
@@ -58,9 +59,6 @@ def _followup(question: str = "你的事业方向如何？", **overrides) -> Fol
     defaults = {"question": question, "reason": "验证命宫信号", "related_chart_factors": ["命宫"]}
     defaults.update(overrides)
     return FollowupQuestion(**defaults)
-
-
-DISCLAIMER = "本分析仅供文化研究、娱乐体验与自我反思参考，不构成医学、法律、财务、心理诊断或人生决策依据"
 
 
 # --- valid output produces no issues ---
@@ -225,3 +223,45 @@ def test_null_report_no_disclaimer_issue() -> None:
     )
     disclaimer_issues = [i for i in issues if i.code == "MISSING_DISCLAIMER"]
     assert len(disclaimer_issues) == 0
+
+
+# --- None fields handled gracefully ---
+
+
+def test_validator_handles_none_safety_note() -> None:
+    facts = _chart_facts()
+    analysis = AnalysisResult(
+        summary="测试",
+        strong_signals=[],
+        weak_hypotheses=[],
+        cross_checks=[],
+        safety_note=None,
+    )
+    issues = validate_analysis_output(
+        chart_facts=facts,
+        analysis=analysis,
+        theme_analyses=[],
+        followup_questions=[],
+        report_markdown=DISCLAIMER,
+    )
+    assert not any(i.code == "FABRICATED_STAR" and "None" in i.message for i in issues)
+
+
+def test_validator_handles_none_uncertainty() -> None:
+    facts = _chart_facts()
+    theme = ThemeAnalysis(
+        theme="career",
+        observations=["命宫紫微化禄"],
+        supporting_evidence=["命宫"],
+        uncertainty=None,
+        followup_questions=[],
+    )
+    issues = validate_analysis_output(
+        chart_facts=facts,
+        analysis=_analysis(),
+        theme_analyses=[theme],
+        followup_questions=[],
+        report_markdown=DISCLAIMER,
+    )
+    crash_issues = [i for i in issues if "None" in i.message]
+    assert len(crash_issues) == 0

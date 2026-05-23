@@ -106,3 +106,40 @@ def test_e2e_script_returns_structured_result() -> None:
     assert "validation_issues" in result
     assert "issue_count" in result
     assert result["llm_mode"] == "mock"
+
+
+def test_e2e_script_reports_clear_error_for_missing_file() -> None:
+    import subprocess
+
+    result = subprocess.run(
+        ["uv", "run", "python", "scripts/verify_e2e_real_sample.py", "/nonexistent/file.md", "--mock-llm"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode != 0
+    assert "File not found" in result.stderr or "not found" in result.stderr.lower()
+
+
+def test_e2e_real_client_imports_correctly() -> None:
+    from unittest.mock import MagicMock, patch
+
+    with patch("app.core.config.Settings") as mock_settings_cls:
+        mock_settings = MagicMock()
+        mock_settings.llm_api_key = "test-key"
+        mock_settings.llm_base_url = "http://localhost:1234"
+        mock_settings.llm_model = "test-model"
+        mock_settings.llm_wire_api = "chat_completions"
+        mock_settings.llm_timeout_seconds = 10
+        mock_settings_cls.return_value = mock_settings
+
+        from app.llm.openai_compatible import OpenAICompatibleLLMClient
+
+        client = OpenAICompatibleLLMClient(
+            api_key=mock_settings.llm_api_key,
+            base_url=mock_settings.llm_base_url,
+            model=mock_settings.llm_model,
+            wire_api=mock_settings.llm_wire_api,
+            timeout_seconds=mock_settings.llm_timeout_seconds,
+        )
+        assert client is not None
