@@ -89,101 +89,124 @@
 - 测试摘要：当时 `uv run black --check .`、`uv run isort --check-only .`、`uv run flake8 .`、`uv run pytest -q` 均通过，测试为 `150 passed`。
 - 遗留风险：均时差为近似值；大限、流年、流月、流日、流时暂未支持；农历输入和 `Gender.unknown` 仍不支持。
 
-## 当前任务
-
 ### Branch 10: 命盘结构与证据层重构
 
 - 分支名：`task-v0.1-chart-structure-evidence-refactor`
-- 参考文档：`.supports/ZIWEI_TS_REFERENCE_REVIEW.md`
-- 任务性质：基于参考 TS 项目的结构设计进行后端重构，为后续 LLM 输出稳定性和前端命盘核验视图打基础。
+- 目标：基于 TS 参考项目的结构设计，新增确定性宫位关系和 `chart_facts` 证据层，让 LLM 基于程序计算出的事实解释命盘。
+- 关键交付：`chart_relations.py`、`chart_facts.py`、`NormalizedChart`/`Palace` 关系字段、Agent context 改为结构化证据、Prompt 证据约束、相关测试和文档。
+- 重要决策：宫位关系和结构化证据属于 Engine/Normalizer；Agent 不再传原始 chart JSON；LLM 不得推算对宫、三方四正、空宫借星等确定性关系。
+- 测试摘要：Claude 提交前已执行格式化、lint 和测试；Codex review 后问题已在合入 develop 前修复。
+- 遗留风险：`chart_facts` 仍是 dict 结构，后续如继续扩展应考虑 TypedDict 或 Pydantic schema；大限、流年、流月、流日、流时仍未支持。
 
-### 目标
+## 当前任务
 
-当前 `NormalizedChart` 只包含 `chart_id`、`source`、`summary`、`palaces`、`four_hua`，Agent 直接把整张 chart JSON 交给 LLM。这个结构不足以稳定表达“命宫/身宫/三方四正/对宫/空宫借星/星曜分类/亮度”等确定性事实。
+### Branch 11: 真实样本端到端验证与输出校准
 
-本分支目标是新增一层确定性命盘事实与宫位关系结构，让程序先算出可验证证据，再交给 LLM 解释。LLM 仍只负责讲透，不负责排盘或推算关系。
+- 分支名：`task-v0.1-e2e-real-sample-validation`
+- 任务性质：验证和校准，不是新增大型功能。
+- 背景：Branch 10 后，主链路已经具备 `BirthInfo -> iztro-py -> NormalizedChart -> chart_facts -> Prompt -> LLM -> AnalysisResponse`。但目前还缺少一次可复跑、脱敏、端到端的真实样本验证，无法确认“程序排出的事实、Prompt 打包方式、LLM 输出引用证据”在真实模型下是否一致、克制、可解释。
+
+### 反思与取舍
+
+Branch 10 已经把后端证据层补上，这时有两个自然方向：
+
+1. 做前端命盘核验视图，让用户先看到程序算出的盘，再看 LLM 分析。
+2. 做端到端真实样本验证，确认排盘事实、Prompt 和 LLM 输出之间没有明显错漏。
+
+本轮选择第 2 个。原因是前端核验视图会放大现有链路的可信度问题：如果 `chart_facts` 选择不当、Prompt 引导不够、LLM 引用了不存在的事实，前端越完整，用户越容易相信错误输出。先把后端真实链路验清楚，再做前端展示，更符合当前“程序负责算准，LLM 负责讲透”的原则。
+
+本任务的目标不是证明紫微解释“绝对准确”，而是建立一套最低限度的验收机制：
+
+- 程序排出的结构化事实可检查；
+- Prompt 传给 LLM 的上下文可脱敏保存；
+- LLM 输出不能引用不存在的宫位、星曜、四化或关系；
+- 遇到证据不足时，输出应降低确定性或提出追问；
+- 私密样本不进入仓库，验证产物也不能泄露出生信息。
 
 ### 必须完成
 
-1. 扩充命盘 Schema
-   - 在 `app/schemas/chart.py` 中补充可由程序确定的结构字段。
-   - `NormalizedChart` 至少应包含：
-     - `ming_palace_index` 或等价命宫定位字段；
-     - `body_palace_index` 或等价身宫定位字段；
-     - `lunar_info`，若 provider 暂不能稳定提供，可设计为可选结构并明确 omitted；
-     - `five_elements_class` 或等价五行局字段，若 provider 暂不能稳定提供，可设计为可选结构并明确 omitted；
-     - `chart_facts` 或等价结构化事实集合。
-   - `Palace` 至少应包含：
-     - `opposite_palace_index`；
-     - `san_fang_si_zheng_indexes`；
-     - `is_empty`；
-     - `borrowed_from_index`；
-     - `borrowed_major_stars`；
-     - 可选的归一化星曜亮度字段，例如 `normalized_brightness`。
+1. 新增端到端验证脚本
+   - 建议路径：`scripts/verify_e2e_real_sample.py`。
+   - 输入：本地私密样本文件路径，例如 `.supports/TEST_INFO_EVA.md`，但该文件不得提交。
+   - 输出：脱敏验证摘要，不包含真实出生日期、出生地、经度、完整原始样本或完整 prompt。
+   - 脚本应覆盖：
+     - 读取私密样本并构造 `BirthInfo`；
+     - 调用 `ZiweiChartEngine` 和 `ChartNormalizer`；
+     - 生成 `chart_facts`；
+     - 调用 `AnalysisService` 或等价端到端流程；
+     - 输出验证摘要和发现的问题。
 
-2. 新增宫位关系计算
-   - 新增 `app/engines/chart_relations.py` 或等价模块。
-   - 由 Engine/Normalizer 层确定：
-     - 对宫；
-     - 三方四正；
-     - 空宫判断；
-     - 空宫借对宫主星。
-   - 不允许把这些关系交给 Prompt 或 LLM 自行推断。
+2. 新增 LLM 输出证据一致性检查
+   - 新增可测试的纯函数模块，建议路径：`app/agents/analysis_evidence_validator.py` 或等价模块。
+   - 输入：`chart_facts`、`AnalysisResult`、`ThemeAnalysis`、`FollowupQuestion`、`report_markdown`。
+   - 检查项至少包括：
+     - 输出中不得出现 `chart_facts` 不存在的星曜名称；
+     - 输出中不得出现 `chart_facts` 不存在的宫位名称；
+     - 输出中不得出现 `chart_facts` 不存在的四化；
+     - 不得出现绝对化或恐吓式表述，例如“必然”“一定会”“注定”“绝对失败”等；
+     - report 必须包含免责声明。
+   - 检查结果应结构化返回，例如 `ValidationIssue(severity, code, message)`，不要只打印字符串。
 
-3. 新增确定性证据层
-   - 新增 `app/engines/chart_facts.py` 或等价模块。
-   - 从 `NormalizedChart` 生成 `chart_facts` / `chart_evidence`。
-   - 证据应只包含结构化事实，例如宫位、星曜、四化、三方四正路径、空宫借星来源。
-   - 不输出“必然发财”“必然离婚”“重大疾病”等宿命化结论。
+3. 校准 Prompt
+   - 根据验证器结果微调 `app/prompts/*.md`。
+   - 重点不是让模型输出更玄，而是让模型：
+     - 明确引用 `chart_facts` 中已有证据；
+     - 缺证据时说“不足以支持强结论”；
+     - 不把主题分析写成泛泛鸡汤；
+     - 不把追问写成暗示性、诱导性问题。
 
-4. 更新 Agent 输入
-   - `ZiweiAnalysisAgent` 的 context 应优先提供结构化事实和必要命盘摘要，而不是无约束地要求模型自行解读原始宫位列表。
-   - Prompt 应明确要求：
-     - 只能引用给定 `chart_facts` / `chart_evidence`；
-     - 不得虚构不存在的星曜、宫位、四化、大限或流年；
-     - 证据不足时必须降低确定性或提出追问。
+4. 增强端到端可观测性
+   - 允许脚本输出脱敏后的阶段摘要：
+     - `chart.source`
+     - 命宫/身宫名称
+     - `chart_facts` 中宫位数量
+     - LLM provider 类型
+     - validation issue 统计
+   - 不输出：
+     - 真实生日、出生地、经度；
+     - API Key、base URL、模型私密配置；
+     - 完整私密样本；
+     - 完整 prompt；
+     - 完整 LLM 原文，除非已脱敏且用户本地手动选择。
 
 5. 更新文档
-   - `.supports/API_SPEC.md`：记录新增 chart 字段和兼容性说明。
-   - `.supports/ARCHITECTURE.md`：记录 `chart_relations` / `chart_facts` 所在层级和数据流。
-   - `.supports/PROMPT_GUIDE.md`：记录 LLM 必须基于结构化证据输出。
-   - `.supports/DECISIONS.md`：记录本分支只借鉴 TS 项目的结构设计，不迁移框架、不复制断语。
+   - `.supports/DEVELOPMENT_GUIDE.md`：新增端到端私密样本验证命令和隐私要求。
+   - `.supports/PROMPT_GUIDE.md`：记录证据一致性检查要求。
+   - `.supports/ARCHITECTURE.md`：记录 E2E 验证脚本和 evidence validator 所在职责。
+   - `.supports/DECISIONS.md`：记录“先做真实链路验证，再做前端核验视图”的决策。
 
 ### 明确不做
 
-- 不迁移 Next.js / React / Tailwind。
-- 不实现 SEO 内容页。
-- 不实现合盘。
+- 不提交 `.supports/TEST_INFO_EVA.md` 或任何私密样本。
+- 不在自动化测试中真实调用外部 LLM。
+- 不把开发者本人的出生信息、地点、经度、命盘全文写入 repo、日志 fixture 或文档。
+- 不做新的前端命盘盘面。
+- 不实现大限、流年、流月、流日、流时。
 - 不引入 LangChain、LangGraph、CrewAI、向量数据库或任务队列。
-- 不一次性移植参考项目的大型格局规则库。
-- 不照搬参考项目中的宿命化断语或高风险文本。
-- 不把 `.supports/TEST_INFO_EVA.md` 或任何私密出生信息写入代码、测试、文档或提交记录。
-- 不让 LLM 计算命宫、身宫、四化、三方四正、空宫借星。
+- 不把证据一致性检查做成“紫微断语正确性裁判”；它只检查引用事实是否存在、表达是否安全、报告是否完整。
 
 ### TDD 建议
 
 Claude 执行时应先写或更新测试，再实现代码：
 
-1. `tests/test_chart_relations.py`
-   - 验证 12 宫 index 的对宫计算。
-   - 验证三方四正返回本宫、对宫、两个三合宫，且结果稳定去重。
-   - 验证非法 index 报清晰错误。
+1. `tests/test_analysis_evidence_validator.py`
+   - valid output 没有 issue。
+   - 输出引用不存在的星曜时返回 issue。
+   - 输出引用不存在的宫位时返回 issue。
+   - 输出引用不存在的四化时返回 issue。
+   - 输出包含绝对化/恐吓式词汇时返回 issue。
+   - report 缺免责声明时返回 issue。
 
-2. `tests/test_chart_normalizer_accuracy.py`
-   - 验证 Normalizer 不丢失 provider 已提供字段。
-   - 验证每个 Palace 都带有对宫与三方四正字段。
-   - 验证空宫时借对宫主星；非空宫不生成借星。
+2. `tests/test_private_chart_sample_script.py`
+   - 验证脚本缺少文件时返回清晰错误。
+   - 验证脚本输出不包含输入样本中的敏感字段。
+   - 验证脚本支持 mock LLM，不真实调用外部模型。
 
-3. `tests/test_chart_schema.py`
-   - 验证新增字段默认值、可选字段和序列化结果。
-   - 验证 API chart 响应不包含私密出生信息。
+3. `tests/test_prompt_loading.py`
+   - 验证 prompt 包含 `chart_facts`、证据不足降级、不虚构事实、JSON-only 等硬约束。
 
-4. `tests/test_agent_parsing.py` 或 `tests/test_analysis_service.py`
-   - 验证 Agent 传给 LLM 的 context 包含 `chart_facts` / `chart_evidence`。
-   - 验证 prompt 明确禁止模型虚构未给定事实。
-
-5. `tests/test_prompt_loading.py`
-   - 验证相关 prompt 包含结构化证据约束、JSON-only 约束和安全边界。
+4. `tests/test_analysis_service.py`
+   - 使用 Mock LLM 走完整 service 流程，并对输出执行 evidence validator。
 
 ### 验收命令
 
@@ -196,14 +219,21 @@ uv run flake8 .
 uv run pytest -q
 ```
 
-如果引入依赖，必须使用 `uv add` 或 `uv add --dev`，并说明原因。本任务预计不需要新增依赖。
+手动真实模型验证可以执行，但只能在本机私密环境中进行，结果记录必须脱敏：
+
+```bash
+MINGMAX_LLM_PROVIDER=openai_compatible \
+uv run python scripts/verify_e2e_real_sample.py .supports/TEST_INFO_EVA.md
+```
+
+如脚本支持 `--mock-llm` 或等价选项，应优先让自动化测试使用 mock 路径。
 
 ### Codex 验收关注点
 
-- 分层是否仍清晰：关系和事实计算属于 Engine/Normalizer，不属于 Agent 或 Prompt。
-- API/Service/Agent 是否没有直接依赖 `iztro-py`。
-- LLM context 是否更收敛，并优先引用结构化证据。
-- 新增字段是否向后兼容，前端和现有 API 测试是否不被无意破坏。
-- 测试是否覆盖关系计算、空宫借星、context 构造和 prompt 约束。
-- 是否没有提交私密样本或泄露出生信息。
-- 是否没有复制参考 TS 项目的宿命化内容。
+- 是否真正验证 `chart_facts -> prompt -> LLM 输出` 的证据一致性。
+- validator 是否是纯函数、可单测、无外部 LLM 依赖。
+- 私密样本是否仍只存在本地，仓库内无真实出生信息泄露。
+- 脚本输出是否脱敏，错误信息是否不会泄露 API Key、base URL 或样本内容。
+- Prompt 校准是否提升证据引用约束，而不是增加宿命化断语。
+- 是否没有引入超出 v0.1 范围的大型框架或复杂基础设施。
+- 是否为后续前端命盘核验视图留下清晰接口，而不是提前实现前端。

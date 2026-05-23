@@ -7,6 +7,7 @@ from app.engines.ziwei_chart_engine import ZiweiChartEngine
 from app.llm.mock import DISCLAIMER, MockLLMClient
 from app.schemas.analysis import AnalysisOptions
 from app.schemas.birth import BirthInfo
+from app.schemas.chart import NormalizedChart
 from app.services.analysis_service import AnalysisService
 
 
@@ -106,3 +107,27 @@ def test_agent_context_uses_chart_facts_not_raw_chart() -> None:
     for p in parsed["palaces"]:
         assert "opposite_palace" in p
         assert "san_fang_si_zheng" in p
+
+
+async def test_service_output_passes_evidence_validation() -> None:
+    from app.agents.analysis_evidence_validator import validate_analysis_output
+    from app.engines.chart_facts import build_chart_facts
+
+    service = _service()
+    result = await service.analyze(
+        _birth_info(),
+        AnalysisOptions(themes=["career"], include_followup_questions=True, include_markdown_report=True),
+    )
+    chart = NormalizedChart(**result.chart)
+    facts = build_chart_facts(chart)
+    issues = validate_analysis_output(
+        chart_facts=facts,
+        analysis=result.analysis,
+        theme_analyses=result.analysis.theme_analyses,
+        followup_questions=result.followup_questions,
+        report_markdown=result.report_markdown,
+    )
+    fabricated = [i for i in issues if i.code.startswith("FABRICATED")]
+    assert len(fabricated) == 0, f"Fabricated references found: {[i.message for i in fabricated]}"
+    unsafe = [i for i in issues if i.code == "UNSAFE_EXPRESSION"]
+    assert len(unsafe) == 0, f"Unsafe expressions found: {[i.message for i in unsafe]}"

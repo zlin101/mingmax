@@ -15,6 +15,16 @@ Prompt 是 mingmax 的核心资产，必须独立管理。Prompt 不得大量硬
 - 必要时输出结构化结果；
 - 在报告中包含免责声明。
 
+## 证据一致性检查
+
+`app/agents/analysis_evidence_validator.py` 的 `validate_analysis_output()` 会在每次分析后检查：
+
+- LLM 输出不得引用 `chart_facts` 中不存在的星曜、宫位、四化；
+- 不得包含绝对化/恐吓式表达（"必然""一定会""注定"等）；
+- 报告必须包含免责声明。
+
+检查结果为 `list[ValidationIssue]`，severity 为 `error` 或 `warning`。端到端验证脚本 `verify_e2e_real_sample.py` 会自动执行此检查。
+
 ## 禁止输出
 
 禁止生成类似表述：
