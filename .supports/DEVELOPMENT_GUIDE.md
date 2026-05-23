@@ -186,6 +186,21 @@ uv run python scripts/verify_private_chart_sample.py .supports/TEST_INFO_EVA.md
 - 输出只允许脱敏差异统计，不得包含真实出生日期、地点、经度、完整宫位文本或任何可识别信息。
 - 自动化测试只使用合成 fixture，不使用私密样本。
 
+## 端到端私密样本验证
+
+使用 `scripts/verify_e2e_real_sample.py` 对本地私密验证文件做完整链路验证（排盘 + chart_facts + LLM 输出 + 证据一致性检查）：
+
+```bash
+# 使用 mock LLM（不调用外部模型）
+uv run python scripts/verify_e2e_real_sample.py .supports/TEST_INFO_EVA.md --mock-llm
+
+# 使用真实 LLM（需要本机配置 MINGMAX_LLM_PROVIDER=openai_compatible 等）
+MINGMAX_LLM_PROVIDER=openai_compatible \
+uv run python scripts/verify_e2e_real_sample.py .supports/TEST_INFO_EVA.md
+```
+
+隐私要求同上。验证输出为脱敏 JSON，包含 chart 来源、宫位数量、LLM 模式和证据一致性 issue 统计，不包含真实出生信息。
+
 ## Code Review 验收口径
 
 Codex review 时优先检查：

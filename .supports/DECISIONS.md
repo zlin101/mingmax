@@ -167,3 +167,15 @@ BirthInfo -> ZiweiChartEngine -> RawChart -> NormalizedChart -> ZiweiAnalysisAge
 - 状态：已确认
 - 决策：`chart_relations.py`（对宫、三方四正、空宫借星）和 `chart_facts.py`（结构化证据提取）属于 Engine 层。Normalizer 在标准化时填充宫位关系字段，Agent 通过 `build_chart_facts()` 生成传给 LLM 的 context。
 - 影响：Agent 不再直接传递原始 `NormalizedChart` JSON，而是传递只包含结构化事实的 `chart_facts`。LLM 不得重新推算任何确定性关系。
+
+### D024: 前端核验视图前先完成真实链路验证
+
+- 状态：已确认
+- 背景：Branch 10 已补充 `chart_facts` 结构化证据层，后续自然方向包括真实样本端到端验证和前端命盘核验视图。
+- 决策：Branch 11 优先做真实样本端到端验证与输出校准，暂不做新的前端命盘盘面。
+- 原因：如果 `chart_facts -> Prompt -> LLM 输出` 仍存在证据引用错漏、泛化分析或不安全表达，前端核验视图会放大用户对错误输出的信任。先建立脱敏、可复跑的真实链路验证，再做前端展示。
+- 影响：
+  - 新增 evidence validator 时应保持纯函数、可单测，不真实调用外部 LLM；
+  - 私密样本只允许本地手动验证，不进入仓库或自动化测试；
+  - 验证产物只记录脱敏摘要和 issue 统计；
+  - 前端增强推迟到端到端链路可信度提高之后。

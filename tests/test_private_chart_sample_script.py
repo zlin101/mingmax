@@ -1,4 +1,7 @@
+import asyncio
+
 from app.engines.chart_diff import ChartDiffResult, PalaceDiff
+from scripts.verify_e2e_real_sample import _run_pipeline
 from scripts.verify_private_chart_sample import _count_mismatched_palaces, _parse_reference
 
 
@@ -62,3 +65,44 @@ def test_count_mismatched_palaces_counts_unique_palace_indexes() -> None:
     )
 
     assert _count_mismatched_palaces(result) == 1
+
+
+def test_e2e_script_output_contains_no_private_data() -> None:
+    from datetime import datetime, timedelta, timezone
+
+    from app.schemas.birth import BirthInfo
+
+    birth_info = BirthInfo(
+        calendar_type="solar",
+        birth_datetime=datetime(2001, 2, 3, 4, 5, tzinfo=timezone(timedelta(hours=8))),
+        gender="female",
+        birth_place="Redacted",
+        timezone="Asia/Shanghai",
+        longitude=121.5,
+    )
+    result = asyncio.run(_run_pipeline(birth_info, use_mock=True))
+    import json
+
+    output = json.dumps(result, ensure_ascii=False)
+    for sensitive in ["2001-02-03", "04:05", "121.5", "Redacted", "female"]:
+        assert sensitive not in output, f"Sensitive data '{sensitive}' found in e2e output"
+
+
+def test_e2e_script_returns_structured_result() -> None:
+    from datetime import datetime, timedelta, timezone
+
+    from app.schemas.birth import BirthInfo
+
+    birth_info = BirthInfo(
+        calendar_type="solar",
+        birth_datetime=datetime(2004, 3, 6, 16, 20, tzinfo=timezone(timedelta(hours=8))),
+        gender="female",
+        birth_place="Redacted",
+        timezone="Asia/Shanghai",
+        longitude=113.264,
+    )
+    result = asyncio.run(_run_pipeline(birth_info, use_mock=True))
+    assert "chart_source" in result
+    assert "validation_issues" in result
+    assert "issue_count" in result
+    assert result["llm_mode"] == "mock"

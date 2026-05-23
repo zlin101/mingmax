@@ -63,7 +63,7 @@ tests/
 - API 层：请求校验、依赖注入、响应封装，不写复杂业务逻辑，不直接调用 LLM。
 - Service 层：编排出生信息、排盘、标准化、Agent 分析和报告生成流程。
 - Engine 层：负责确定性排盘、命盘标准化、宫位关系计算（`chart_relations`）、结构化事实提取（`chart_facts`），不调用 LLM；第三方紫微库通过 `engines/providers/` 适配后再由 `ZiweiChartEngine` 使用。
-- Agent 层：组织 LLM 分析流程、Prompt Pipeline、追问与校准，不负责排盘或关系计算。Agent 通过 `build_chart_facts()` 生成结构化证据传给 LLM，不得将原始 `NormalizedChart` JSON 直接交给模型。
+- Agent 层：组织 LLM 分析流程、Prompt Pipeline、追问与校准，不负责排盘或关系计算。Agent 通过 `build_chart_facts()` 生成结构化证据传给 LLM，不得将原始 `NormalizedChart` JSON 直接交给模型。`analysis_evidence_validator.py` 提供 LLM 输出证据一致性检查，纯函数，不调用外部 LLM。
 - LLM 层：统一模型调用抽象，提供真实 Client 和 Mock Client。
 - Schema 层：定义请求、响应、命盘、分析结果等结构化模型。
 - Web 层：静态前端文件，通过 FastAPI 挂载，只调用后端 API，不直接参与排盘或 LLM 调用。
@@ -84,6 +84,7 @@ HTTP Request
   -> LLMClient
   -> AnalysisResult
   -> Markdown report
+  -> validate_analysis_output() (checks evidence consistency)
   -> HTTP Response
 ```
 
@@ -134,6 +135,14 @@ Branch 1-6 允许使用可预测的 Engine stub 和 Mock/真实 LLM Client 建�
 ### 本地验证脚本
 
 `scripts/verify_private_chart_sample.py` 接受本地文件路径，解析参考命盘文本，与 mingmax 排盘结果对比，输出脱敏差异摘要。不得提交私密验证文件。
+
+### 端到端验证脚本
+
+`scripts/verify_e2e_real_sample.py` 接受本地私密样本文件路径，运行完整 `BirthInfo -> 排盘 -> chart_facts -> LLM -> 验证` 流程，输出脱敏验证摘要和证据一致性 issue 统计。支持 `--mock-llm` 选项用于自动化测试。输出不包含真实出生日期、地点、经度、API Key 或完整 LLM 原文。
+
+### LLM 输出证据一致性检查
+
+`app/agents/analysis_evidence_validator.py` 提供 `validate_analysis_output()`，纯函数，检查 LLM 输出是否引用 `chart_facts` 中不存在的星曜、宫位、四化，是否包含绝对化/恐吓式表达，报告是否包含免责声明。返回 `list[ValidationIssue]`，不调用外部 LLM。
 
 ### 未支持范围
 
