@@ -223,3 +223,15 @@ BirthInfo -> ZiweiChartEngine -> RawChart -> NormalizedChart -> ZiweiAnalysisAge
   - 不改动公开 API 响应结构；
   - 不引入知识库、格局规则库或复杂 Agent 框架。
 - 影响：LLM 输入信息密度提升，基于更完整的结构化事实进行分析；审计文档记录了已支持、可获得但未暴露、provider 未确认、v0.1 不支持的字段状态。
+
+### D028: provider 字段取舍必须先基于原始输出快照
+
+- 状态：已确认
+- 背景：Branch 13/14 提前围绕 `chart_facts`、Prompt 和 evidence 体系扩展，但没有先系统落盘和审计 `iztro-py` 原始返回对象，导致部分字段长期停留在 `provider_unknown`，字段取舍依据不够扎实。
+- 决策：
+  - 后续涉及紫微排盘字段、Prompt 输入事实、schema 扩展或 provider 支持边界时，必须先生成 `iztro-py` 原始输出的可序列化快照；
+  - 快照用于审计 provider 顶层对象、palace、star、四化、大限、五行局、命宫/身宫、农历、四柱等字段是否真实存在；
+  - 字段进入 `RawChart`、`NormalizedChart`、`chart_facts` 或 Prompt 之前，必须先明确其来源：`iztro-py` 原生、mingmax 派生、额外历法库、人工规则表或暂不支持；
+  - 私密出生样本只允许输出到本地 ignored 路径，仓库内只能保留合成样本或脱敏审计结论；
+  - 不再根据当前 schema 或 Prompt 需求反推 provider 能力，也不让 LLM 补算 provider 未确认字段。
+- 影响：Branch 15 先做 provider 原始快照和字段能力审计，再决定是否扩展正式业务结构；后续 Prompt 丰富度必须建立在确定性事实边界之上。

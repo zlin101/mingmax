@@ -136,4 +136,178 @@
 
 ## 当前任务
 
-暂无新任务。
+### Branch 15: iztro-py 原始输出快照与字段能力审计
+
+- 分支名：`feature/v0.1-iztro-provider-snapshot-audit`
+- 负责分工：Claude 负责开发、测试、commit、push；Codex 负责 code review 和验收；merge 只由项目负责人执行。
+- 背景：Branch 13/14 已建立 evidence 体系并增强 `chart_facts`，但没有先完整落盘和审计 `iztro-py` 原始返回对象，导致农历、四柱、大限、命主/身主、五行局等字段仍停留在 `provider_unknown`。本分支不是继续扩展 Prompt，而是先把 provider 能力边界搞清楚。
+
+#### 目标
+
+建立一个可复用的 provider 审计工具链：
+
+```text
+BirthInfo / synthetic sample
+  -> 调用 iztro-py
+  -> 生成可序列化 raw provider snapshot
+  -> 生成字段 inventory
+  -> 更新字段完整度审计文档
+  -> 再决定后续哪些字段进入正式业务结构
+```
+
+本分支完成后，项目应能回答：
+
+- `iztro-py` 顶层 astrolabe 实际有哪些 public 字段；
+- 每个 palace 实际有哪些字段；
+- major/minor/adjective star 实际有哪些字段；
+- 四化、大限、五行局、命宫/身宫、农历、四柱等字段是否真实存在；
+- 哪些字段来自 `iztro-py` 原生，哪些只能由 mingmax 派生，哪些需要额外历法库，哪些暂不支持；
+- `/home/liam/git/ziwei-doushu` 参考项目中传给 LLM 的 chart 字段，哪些可以在 mingmax 中复用，哪些不应复用。
+
+#### 必须阅读
+
+开发前先阅读：
+
+- `AGENTS.md`
+- `.supports/PROJECT_CONTEXT.md`
+- `.supports/DECISIONS.md`
+- `.supports/ARCHITECTURE.md`
+- `.supports/TASKS.md`
+- `.supports/CHART_FACTS_COMPLETENESS_AUDIT.md`
+- `/home/liam/git/ziwei-doushu/lib/ziwei/types.ts`
+- `/home/liam/git/ziwei-doushu/lib/ziwei/algorithm.ts`
+- `/home/liam/git/ziwei-doushu/components/ChatPanel.tsx`
+- `/home/liam/git/ziwei-doushu/components/InsightPanel.tsx`
+
+#### 实现范围
+
+1. 新增 provider raw snapshot 工具
+
+   建议文件：
+
+   - `scripts/dump_iztro_provider_snapshot.py`
+
+   要求：
+
+   - 使用合成出生信息作为默认样本，不读取 `.supports/TEST_INFO_EVA.md`；
+   - 允许通过参数传入本地私密样本路径，但输出必须进入 ignored 本地目录，例如 `.local/iztro_snapshots/`；
+   - 不把真实出生日期、地点、经度、姓名或完整私密命盘写入仓库；
+   - 直接调用当前 `iztro-py` 能力，必要时同时记录 `ZiweiChartEngine` / provider 包装后的结果，但重点是原始对象；
+   - 输出 JSON 文件，例如：
+
+     ```text
+     .local/iztro_snapshots/<timestamp>-raw-provider-snapshot.json
+     .local/iztro_snapshots/<timestamp>-field-inventory.md
+     ```
+
+2. 新增安全 serializer
+
+   要求：
+
+   - 能递归遍历 `iztro-py` 返回对象、palace、star 等对象；
+   - 支持基本类型、list、tuple、dict、enum、pydantic model；
+   - 记录对象类型名；
+   - 跳过 callable；
+   - 限制递归深度，避免循环引用；
+   - 对不可序列化字段降级为字符串或类型描述；
+   - 不使用 `print` 作为库内日志；脚本入口可以输出简短完成信息。
+
+   建议放置：
+
+   - `app/engines/providers/provider_snapshot.py`
+
+3. 生成字段 inventory
+
+   字段清单至少覆盖：
+
+   - astrolabe 顶层字段；
+   - palace 字段；
+   - major star 字段；
+   - minor star 字段；
+   - adjective star 字段；
+   - mutagen / 四化相关字段；
+   - decadal / 大限相关字段；
+   - five elements / 五行局相关字段；
+   - soul/body palace / 命宫身宫相关字段；
+   - lunar / 农历相关字段；
+   - pillars / 四柱相关字段。
+
+   inventory 不需要包含私密样本值，只需要字段路径、类型、是否存在、样例值摘要。
+
+4. 对齐 TS 参考项目
+
+   更新或新增文档，建议优先更新：
+
+   - `.supports/CHART_FACTS_COMPLETENESS_AUDIT.md`
+
+   需要新增一个“TS 参考项目字段对齐”小节，明确：
+
+   - `BirthInfo` 字段哪些已支持；
+   - `LunarInfo` 在 TS 项目中来自 `lunar-javascript`，不要误认为 iztro 原生；
+   - `Star.type = lucky/sha` 是 TS 项目规则映射，不是 iztro 原生结构；
+   - `ziweiPos`、`currentAge`、`currentDaXianIndex` 属于派生字段；
+   - `daXianAge` 是否能从 `iztro-py` 原始对象中拿到；
+   - TS 项目把完整 `chart` 发给 LLM，而 mingmax 当前保持 `chart_facts + evidence_id + validator`，只借鉴字段丰富度，不照搬整包 chart 入 prompt。
+
+5. 更新审计结论
+
+   将 `.supports/CHART_FACTS_COMPLETENESS_AUDIT.md` 中能够确认的 `provider_unknown` 改成明确状态：
+
+   - `provider_supported`
+   - `derived_by_mingmax`
+   - `requires_extra_calendar_library`
+   - `unsupported_by_provider`
+   - `unsupported_v0.1`
+   - `needs_followup`
+
+   不确定的字段必须写明“为什么仍不确定”，不能只保留空泛的 `?`。
+
+#### 明确不做
+
+- 不在本分支继续优化 LLM Prompt 文风；
+- 不让 LLM 补算任何 provider 未确认字段；
+- 不一次性把所有发现字段加入公开 API；
+- 不大规模改 `RawChart` / `NormalizedChart` / `chart_facts` schema；
+- 不实现大限、流年、流月、流日、流时分析；
+- 不引入 LangChain、LangGraph、CrewAI、向量数据库或复杂 Agent 框架；
+- 不读取、提交或泄露 `.supports/TEST_INFO_EVA.md` 中的开发者私密信息；
+- 不把 `.local/iztro_snapshots/` 中的私密快照提交到仓库。
+
+#### 允许的小范围业务修复
+
+如果审计发现当前已经有明确字段可得、且 mingmax 已有 schema 承载但 provider 漏取，可以做小范围修复，但必须满足：
+
+- 修改范围小；
+- 有单元测试；
+- 文档说明字段来源；
+- 不改变公开 API 契约的主要结构；
+- 不把本分支变成“字段大扩张”。
+
+#### 测试要求
+
+至少补充：
+
+- serializer 能处理嵌套对象、list、dict、enum、callable、循环引用或重复引用；
+- snapshot 脚本默认使用合成样本，不读取私密样本；
+- 输出目录默认为 `.local/iztro_snapshots/`；
+- inventory 生成不包含私密输入原文；
+- `.local/iztro_snapshots/` 被 `.gitignore` 排除；
+- 文档中不包含 `.supports/TEST_INFO_EVA.md` 的真实出生信息。
+
+建议执行：
+
+```bash
+uv run black --check .
+uv run isort --check-only .
+uv run flake8 .
+uv run pytest -q
+```
+
+#### 验收标准
+
+- 可以通过一条 `uv run ...` 命令生成 raw provider snapshot 和 field inventory；
+- 仓库内不包含任何私密样本值或真实个人出生信息；
+- `.supports/CHART_FACTS_COMPLETENESS_AUDIT.md` 能清楚说明 `iztro-py` 到底支持哪些字段；
+- TS 参考项目字段来源被明确拆分为 iztro 原生、TS 派生、额外历法库、暂不复用；
+- Branch 13/14 遗留的 `provider_unknown` 至少被系统性收敛，不再继续靠猜；
+- Codex review 时重点检查隐私边界、serializer 安全性、字段来源判断、是否过度扩张业务 schema。

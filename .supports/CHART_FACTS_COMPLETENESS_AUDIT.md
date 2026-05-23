@@ -104,6 +104,74 @@
 3. **自化/向心/离心**：倪师体系特有，即使 provider 提供也本轮不做。
 4. **神煞系统**：岁前星、将前星、十二长生、太岁煞禄等。
 
+## Branch 15: iztro-py 原始输出快照与字段能力审计
+
+Branch 15 通过直接调用 `iztro-py` 并序列化原始对象，确认了以下字段能力：
+
+### 已确认的 iztro-py 原生字段
+
+| 字段 | iztro-py 字段路径 | 类型 | 样例值 | mingmax 当前状态 |
+|------|------------------|------|-------|-----------------|
+| 五行局 | `astrolabe.five_elements_class` | str | "土五局" | ✓ 已支持 (`five_elements_class`) |
+| 农历日期 | `astrolabe.lunar_date` | str | "一九九〇年四月廿一" | ✗ 未暴露 (lunar_info 为空) |
+| 中文日期 | `astrolabe.chinese_date` | str | "庚午 辛巳 庚辰 癸未" | ✗ 未暴露 |
+| 身宫地支 | `astrolabe.earthly_branch_of_body_palace` | str | "ziEarthly" | ✗ 未暴露 |
+| 命宫地支 | `astrolabe.earthly_branch_of_soul_palace` | str | "xuEarthly" | ✗ 未暴露 |
+| 身宫类型 | `astrolabe.body` | str | "huoxingMin" | ✗ 未暴露 |
+| 大限信息 | `palace[].decadal` | Decadal object | {heavenly_stem, earthly_branch, range} | ✗ 未暴露 |
+| 宫位天干 | `palace[].heavenly_stem` | str | "wuHeavenly" | ✓ 已暴露 (heavenly_stem) |
+| 宫位地支 | `palace[].earthly_branch` | str | "yinEarthly" | ✓ 已暴露 (earthly_branch) |
+| 星曜名称 | `star.name` | str | "tianchu" | ✓ 已暴露 |
+| 星曜类型 | `star.type` | str | "adjective" | ✓ 已暴露 (category) |
+| 星曜范围 | `star.scope` | str | "origin" | ✗ 未暴露 |
+
+### TS 参考项目字段来源分析
+
+| TS 字段 | 实际来源 | mingmax 是否应复用 |
+|---------|---------|-------------------|
+| `LunarInfo` (lunarYear, lunarMonth, lunarDay, isLeapMonth) | 来自 `lunar-javascript` 库，**非** iztro 原生 | ✗ 需额外历法库，iztro 只提供字符串 |
+| `Star.type = 'lucky'\|'sha'` | TS 项目规则映射，**非** iztro 原生类型 | ✗ iztro 原生类型为 major/minor/adjective |
+| `Star.brightness` | iztro 原生有 `brightness` 字段 | ✓ 可复用 |
+| `Star.siHua` | iztro 原生有 `mutagen` 字段 | ✓ 可复用（已作为四化） |
+| `DaXian` (大限) | iztro 原生有 `decadal` 对象 | ✓ 可复用，但 v0.1 不实现大限分析 |
+| `ziweiPos` | 派生字段（计算紫微星位置） | ✗ mingmax 可自行计算 |
+| `currentAge`, `currentDaXianIndex` | 派生字段（基于用户年龄） | ✗ mingmax 可自行计算 |
+
+### 更新后的字段状态
+
+| 字段类别 | Branch 14 状态 | Branch 15 确认状态 | 说明 |
+|---------|---------------|-------------------|------|
+| 五行局 | `supported_now` | `provider_supported` | iztro 原生提供，mingmax 已支持 |
+| 农历日期 | `provider_unknown` | `provider_supported` | iztro 原生提供字符串，mingmax 未暴露 |
+| 中文日期/四柱 | `provider_unknown` | `provider_supported` | iztro 提供四柱字符串，mingmax 未暴露 |
+| 大限信息 | `unsupported_v0.1` | `provider_supported` | iztro 原生提供，v0.1 不做分析 |
+| 身宫地支 | `provider_unknown` | `provider_supported` | iztro 原生提供，mingmax 可计算 |
+| 命宫地支 | `provider_unknown` | `provider_supported` | iztro 原生提供，mingmax 可计算 |
+| 星曜范围 | `provider_unknown` | `provider_supported` | iztro 原生提供，mingmax 未暴露 |
+
+### 可直接暴露的字段（无需 schema 变更）
+
+以下字段 `iztro-py` 已提供且 mingmax schema 已能承载，建议优先暴露：
+
+1. **农历信息** (`lunar_date`) - 从 `astrolabe.lunar_date` 到 `NormalizedChart.lunar_info`
+2. **中文日期/四柱** (`chinese_date`) - 新增字段到 `NormalizedChart`
+3. **身宫地支** (`earthly_branch_of_body_palace`) - 可用于验证或派生字段
+4. **命宫地支** (`earthly_branch_of_soul_palace`) - 可用于验证或派生字段
+
+### 需要额外派生的字段
+
+以下字段 TS 项目有但 iztro 不直接提供结构化数据：
+
+1. **结构化 LunarInfo** (lunarYear, lunarMonth, lunarDay, isLeapMonth) - 需要解析 `lunar_date` 字符串或引入 `lunar-javascript` 类库
+2. **命主、身主** - 需要额外规则计算，iztro 不提供
+3. **自化/向心/离心** - 倪师体系特有，iztro 不支持
+
+### 不应复用的 TS 项目设计
+
+1. **Star.type = 'lucky'\|'sha'** - TS 项目自定义映射，iztro 原生为 major/minor/adjective，应保持 iztro 分类
+2. **完整 chart 对象入 Prompt** - mingmax 使用 `chart_facts + evidence_id + validator` 模式，不照搬 TS 的整包 chart 入 prompt
+
+
 ## 本轮处理计划
 
 ### 必做
