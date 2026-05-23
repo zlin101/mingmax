@@ -31,6 +31,28 @@ def _chart_facts(
     }
 
 
+def _chart_facts_with_evidence() -> dict:
+    """chart_facts with a realistic evidence_index for evidence ID tests."""
+    facts = _chart_facts(
+        palaces=[
+            {"name": "命宫", "major_stars": ["紫微", "天府"], "mutagens": {"化禄": "紫微"}},
+            {"name": "兄弟宫", "major_stars": ["天机"], "mutagens": {}},
+        ]
+    )
+    facts["evidence_index"] = [
+        {"id": "palace:0", "type": "palace", "label": "命宫(index 0)"},
+        {"id": "palace:1", "type": "palace", "label": "兄弟宫(index 1)"},
+        {"id": "star:0:紫微", "type": "star", "label": "紫微在命宫"},
+        {"id": "star:0:天府", "type": "star", "label": "天府在命宫"},
+        {"id": "star:1:天机", "type": "star", "label": "天机在兄弟宫"},
+        {"id": "mutagen:0:hua_lu:紫微", "type": "mutagen", "label": "紫微化禄在命宫"},
+        {"id": "relation:0:opposite:6", "type": "relation", "label": "命宫对宫迁移宫"},
+        {"id": "relation:0:sfsz:0,4,6,8", "type": "relation", "label": "命宫三方四正"},
+        {"id": "borrowed:2:from:6:太阳", "type": "borrowed", "label": "官禄宫(空宫)借太阳"},
+    ]
+    return facts
+
+
 def _analysis(**overrides) -> AnalysisResult:
     defaults = {
         "summary": "测试分析摘要",
@@ -270,8 +292,9 @@ def test_validator_handles_none_uncertainty() -> None:
 # --- Enhanced validator: evidence_id, palace-star binding, mutagen binding, unsupported time layer ---
 
 
-def test_fabricated_evidence_id() -> None:
-    facts = _chart_facts()
+def test_fabricated_evidence_id_star() -> None:
+    """star:5:贪狼 does not exist in evidence_index."""
+    facts = _chart_facts_with_evidence()
     analysis = _analysis(strong_signals=["依据 star:5:贪狼（证据不存在）"])
     issues = validate_analysis_output(
         chart_facts=facts,
@@ -284,11 +307,100 @@ def test_fabricated_evidence_id() -> None:
     assert len(fabricated) >= 1
 
 
-def test_valid_evidence_id_not_flagged() -> None:
-    facts = _chart_facts()
-    ids = [e["id"] for e in facts.get("evidence_index", [])]
-    valid_id = ids[0] if ids else "palace:0"
-    analysis = _analysis(strong_signals=[f"依据 {valid_id} 观察到"])
+def test_fabricated_evidence_id_palace() -> None:
+    """palace:99 does not exist in evidence_index."""
+    facts = _chart_facts_with_evidence()
+    analysis = _analysis(strong_signals=["依据 palace:99 观察到"])
+    issues = validate_analysis_output(
+        chart_facts=facts,
+        analysis=analysis,
+        theme_analyses=[],
+        followup_questions=[],
+        report_markdown=DISCLAIMER,
+    )
+    fabricated = [i for i in issues if i.code == "FABRICATED_EVIDENCE_ID"]
+    assert len(fabricated) >= 1
+
+
+def test_fabricated_evidence_id_mutagen() -> None:
+    """mutagen:0:hua_ji:贪狼 does not exist."""
+    facts = _chart_facts_with_evidence()
+    analysis = _analysis(strong_signals=["mutagen:0:hua_ji:贪狼 不存在"])
+    issues = validate_analysis_output(
+        chart_facts=facts,
+        analysis=analysis,
+        theme_analyses=[],
+        followup_questions=[],
+        report_markdown=DISCLAIMER,
+    )
+    fabricated = [i for i in issues if i.code == "FABRICATED_EVIDENCE_ID"]
+    assert len(fabricated) >= 1
+
+
+def test_fabricated_evidence_id_relation() -> None:
+    """relation:0:opposite:99 does not exist."""
+    facts = _chart_facts_with_evidence()
+    analysis = _analysis(strong_signals=["relation:0:opposite:99 不存在"])
+    issues = validate_analysis_output(
+        chart_facts=facts,
+        analysis=analysis,
+        theme_analyses=[],
+        followup_questions=[],
+        report_markdown=DISCLAIMER,
+    )
+    fabricated = [i for i in issues if i.code == "FABRICATED_EVIDENCE_ID"]
+    assert len(fabricated) >= 1
+
+
+def test_fabricated_evidence_id_borrowed() -> None:
+    """borrowed:99:from:0:紫微 does not exist."""
+    facts = _chart_facts_with_evidence()
+    analysis = _analysis(strong_signals=["borrowed:99:from:0:紫微 不存在"])
+    issues = validate_analysis_output(
+        chart_facts=facts,
+        analysis=analysis,
+        theme_analyses=[],
+        followup_questions=[],
+        report_markdown=DISCLAIMER,
+    )
+    fabricated = [i for i in issues if i.code == "FABRICATED_EVIDENCE_ID"]
+    assert len(fabricated) >= 1
+
+
+def test_valid_evidence_id_palace_not_flagged() -> None:
+    """palace:0 exists in evidence_index and should not be flagged."""
+    facts = _chart_facts_with_evidence()
+    analysis = _analysis(strong_signals=["依据 palace:0 观察到"])
+    issues = validate_analysis_output(
+        chart_facts=facts,
+        analysis=analysis,
+        theme_analyses=[],
+        followup_questions=[],
+        report_markdown=DISCLAIMER,
+    )
+    fabricated = [i for i in issues if i.code == "FABRICATED_EVIDENCE_ID"]
+    assert len(fabricated) == 0
+
+
+def test_valid_evidence_id_star_not_flagged() -> None:
+    """star:0:紫微 exists in evidence_index and should not be flagged."""
+    facts = _chart_facts_with_evidence()
+    analysis = _analysis(strong_signals=["依据 star:0:紫微 观察到"])
+    issues = validate_analysis_output(
+        chart_facts=facts,
+        analysis=analysis,
+        theme_analyses=[],
+        followup_questions=[],
+        report_markdown=DISCLAIMER,
+    )
+    fabricated = [i for i in issues if i.code == "FABRICATED_EVIDENCE_ID"]
+    assert len(fabricated) == 0
+
+
+def test_valid_evidence_id_mutagen_not_flagged() -> None:
+    """mutagen:0:hua_lu:紫微 exists in evidence_index."""
+    facts = _chart_facts_with_evidence()
+    analysis = _analysis(strong_signals=["依据 mutagen:0:hua_lu:紫微 观察到"])
     issues = validate_analysis_output(
         chart_facts=facts,
         analysis=analysis,

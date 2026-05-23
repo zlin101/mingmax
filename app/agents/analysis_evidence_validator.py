@@ -188,10 +188,16 @@ def _check_text_for_fabricated_evidence_ids(text: str, valid_ids: set[str]) -> l
     import re
 
     issues = []
-    # Match evidence ID patterns: type:numbers:and:names
-    for match in re.finditer(r"(?:palace|star|mutagen|relation|borrowed):\d+:[\w,\d:：]+", text):
+    # Match all evidence ID formats:
+    #   palace:<idx>
+    #   star:<idx>:<name>
+    #   mutagen:<idx>:<field>:<name>
+    #   relation:<idx>:opposite:<idx>
+    #   relation:<idx>:sfsz:<idxes>
+    #   borrowed:<idx>:from:<idx>:<name>
+    pattern = r"(?:(?:palace|star|mutagen|relation|borrowed):\d+" r"(?::[\w,：\u4e00-\u9fff]+)*)"
+    for match in re.finditer(pattern, text):
         candidate = match.group(0)
-        # Clean up: strip trailing punctuation or partial matches
         if candidate not in valid_ids:
             issues.append(
                 ValidationIssue(
