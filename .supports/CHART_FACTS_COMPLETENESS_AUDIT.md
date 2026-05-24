@@ -14,20 +14,21 @@
 | 经度 | ✓ | ✗ (外部输入) | ✓ (birth_info_snapshot) | ✗ | `available_but_not_exposed` - 非本轮重点 |
 | 钟表时间 | ✓ | ✓ | ✓ (birth_info_snapshot) | ✗ | `available_but_not_exposed` - 非本轮重点 |
 | 真太阳时 | ✓ | ✗ (本程序计算) | ✗ | ✗ | `available_but_not_exposed` - 非本轮重点 |
-| 农历时间 | ✓ | ? (需验证) | ✓ (lunar_info，但可能为空) | ✗ | `provider_unknown` - 待确认 iztro-py 是否提供 |
+| 农历时间 | ✓ | ✓ | ✓ (metadata.lunar_date) | ✓ | `supported_now` (Branch 16/17) |
+| 四柱 | ✓ | ✓ | ✓ (metadata.chinese_date) | ✓ | `supported_now` (Branch 16/17) |
 
 ### 四柱
 
 | 字段/信息类别 | 文墨天机参考是否包含 | iztro-py 原始输出是否可获得 | RawChart/NormalizedChart 是否保留 | chart_facts/Prompt 是否传入 | 本轮处理结论 |
 |-------------|-------------------|------------------------|--------------------------|----------------------|------------|
-| 节气四柱 | ✓ | ? | ✗ | ✗ | `provider_unknown` - 待确认 |
-| 非节气四柱 | ✓ | ? | ✗ | ✗ | `provider_unknown` - 待确认 |
+| 节气四柱 | ✓ | ✓ | ✓ (metadata.chinese_date) | ✓ | `supported_now` (Branch 16/17) |
+| 非节气四柱 | ✓ | ✓ | ✓ (metadata.chinese_date) | ✓ | `supported_now` (Branch 16/17) |
 
 ### 命盘身份
 
 | 字段/信息类别 | 文墨天机参考是否包含 | iztro-py 原始输出是否可获得 | RawChart/NormalizedChart 是否保留 | chart_facts/Prompt 是否传入 | 本轮处理结论 |
 |-------------|-------------------|------------------------|--------------------------|----------------------|------------|
-| 五行局 | ✓ | ? | ✓ (five_elements_class) | ✓ | `supported_now` |
+| 五行局 | ✓ | ✓ | ✓ (metadata.five_elements_class) | ✓ | `supported_now` (Branch 16/17) |
 | 命主 | ✓ | ? | ✗ | ✗ | `provider_unknown` |
 | 身主 | ✓ | ? | ✗ | ✗ | `provider_unknown` |
 | 子年斗君 | ✓ | ? | ✗ | ✗ | `unsupported_v0.1` |
@@ -99,7 +100,7 @@
 
 ### v0.1 明确不支持字段
 
-1. **大限、流年、流月、流日、流时**：时间层计算。
+1. **流年、流月、流日、流时**：时间层计算（大限已支持）。
 2. **子年斗君**：时间层相关。
 3. **自化/向心/离心**：倪师体系特有，即使 provider 提供也本轮不做。
 4. **神煞系统**：岁前星、将前星、十二长生、太岁煞禄等。
@@ -118,12 +119,13 @@ Branch 15 通过直接调用 `iztro-py` 并序列化原始对象，确认了以�
 | 身宫地支 | `astrolabe.earthly_branch_of_body_palace` | str | "ziEarthly" | ✗ 未暴露 |
 | 命宫地支 | `astrolabe.earthly_branch_of_soul_palace` | str | "xuEarthly" | ✗ 未暴露 |
 | 身宫类型 | `astrolabe.body` | str | "huoxingMin" | ✗ 未暴露 |
-| 大限信息 | `palace[].decadal` | Decadal object | {heavenly_stem, earthly_branch, range} | ✗ 未暴露 |
+| 大限信息 | `palace[].decadal` | Decadal object | {heavenly_stem, earthly_branch, range} | ✓ 已支持 (Branch 16/17) |
 | 宫位天干 | `palace[].heavenly_stem` | str | "wuHeavenly" | ✓ 已暴露 (heavenly_stem) |
 | 宫位地支 | `palace[].earthly_branch` | str | "yinEarthly" | ✓ 已暴露 (earthly_branch) |
 | 星曜名称 | `star.name` | str | "tianchu" | ✓ 已暴露 |
 | 星曜类型 | `star.type` | str | "adjective" | ✓ 已暴露 (category) |
-| 星曜范围 | `star.scope` | str | "origin" | ✗ 未暴露 |
+| 星曜范围 | `star.scope` | str | "origin" | ✓ 已支持 (Branch 16/17) |
+| 当前大限 | `horoscope.decadal` | Decadal object | {start_age, end_age, palace} | ✓ 已支持 (Branch 16/17) |
 
 ### TS 参考项目字段来源分析
 
@@ -139,15 +141,16 @@ Branch 15 通过直接调用 `iztro-py` 并序列化原始对象，确认了以�
 
 ### 更新后的字段状态
 
-| 字段类别 | Branch 14 状态 | Branch 15 确认状态 | 说明 |
-|---------|---------------|-------------------|------|
-| 五行局 | `supported_now` | `provider_supported` | iztro 原生提供，mingmax 已支持 |
-| 农历日期 | `provider_unknown` | `provider_supported` | iztro 原生提供字符串，mingmax 未暴露 |
-| 中文日期/四柱 | `provider_unknown` | `provider_supported` | iztro 提供四柱字符串，mingmax 未暴露 |
-| 大限信息 | `unsupported_v0.1` | `provider_supported` | iztro 原生提供，v0.1 不做分析 |
-| 身宫地支 | `provider_unknown` | `provider_supported` | iztro 原生提供，mingmax 可计算 |
-| 命宫地支 | `provider_unknown` | `provider_supported` | iztro 原生提供，mingmax 可计算 |
-| 星曜范围 | `provider_unknown` | `provider_supported` | iztro 原生提供，mingmax 未暴露 |
+| 字段类别 | Branch 14 状态 | Branch 15 确认状态 | Branch 16/17 状态 | 说明 |
+|---------|---------------|-------------------|-----------------|------|
+| 五行局 | `supported_now` | `provider_supported` | `supported_now` | iztro 原生提供，mingmax 已支持 |
+| 农历日期 | `provider_unknown` | `provider_supported` | `supported_now` | iztro 原生提供字符串，mingmax 已暴露 |
+| 中文日期/四柱 | `provider_unknown` | `provider_supported` | `supported_now` | iztro 提供四柱字符串，mingmax 已暴露 |
+| 大限信息 | `unsupported_v0.1` | `provider_supported` | `supported_now` | iztro 原生提供，mingmax 已支持大限区间级分析 |
+| 当前大限 | `unsupported_v0.1` | `provider_supported` | `supported_now` | mingmax 已支持当前大限计算 |
+| 身宫地支 | `provider_unknown` | `provider_supported` | `supported_now` | iztro 原生提供，mingmax 已暴露 |
+| 命宫地支 | `provider_unknown` | `provider_supported` | `supported_now` | iztro 原生提供，mingmax 已暴露 |
+| 星曜范围 | `provider_unknown` | `provider_supported` | `supported_now` | iztro 原生提供，mingmax 已暴露 |
 
 ### 可直接暴露的字段（无需 schema 变更）
 

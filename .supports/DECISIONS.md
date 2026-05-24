@@ -235,3 +235,15 @@ BirthInfo -> ZiweiChartEngine -> RawChart -> NormalizedChart -> ZiweiAnalysisAge
   - 私密出生样本只允许输出到本地 ignored 路径，仓库内只能保留合成样本或脱敏审计结论；
   - 不再根据当前 schema 或 Prompt 需求反推 provider 能力，也不让 LLM 补算 provider 未确认字段。
 - 影响：Branch 15 先做 provider 原始快照和字段能力审计，再决定是否扩展正式业务结构；后续 Prompt 丰富度必须建立在确定性事实边界之上。
+
+### D029: 丰富事实输入优先于最小事实约束
+
+- 状态：已确认
+- 背景：Branch 13/14 先强化了 evidence 与 validator，但事实输入仍偏瘦；Branch 15 已确认 `iztro-py` 原生提供农历日期、四柱字符串、命身宫地支、身宫类型、星曜 scope、大限 decadal 等更多信息。
+- 决策：
+  - `iztro-py` 原生事实应优先完整吸收到内部结构，再由 `chart_facts` 组织为 rich facts package；
+  - LLM 输入应尽可能丰富，但必须带来源、支持状态和分析边界，而不是用减少事实输入来保证安全；
+  - validator 的职责是拦截伪造事实、错误绑定、越界分析和不安全表达，不应成为削弱事实输入的手段；
+  - 大限数据可以进入内部结构和 `chart_facts`，并开放"大限区间级辅助分析"；但流年、流月、流日、流时仍不支持，不能预测具体年份或具体事件发生；
+  - `chinese_date` 可作为四柱字符串事实进入命盘背景，但 v0.1 仍不开放八字分析。
+- 影响：Branch 16/17 合并为一次较大的事实层与大限基础分析能力重构；前端参考文墨天机的信息密度设计另开后续分支，不与本轮混做。

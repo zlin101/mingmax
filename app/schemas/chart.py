@@ -5,6 +5,18 @@ class Star(BaseModel):
     name: str
     brightness: str | None = None
     category: str | None = None
+    scope: str | None = None
+
+
+class DecadalRange(BaseModel):
+    """Represents a decadal (大限) range in ziwei astrology."""
+
+    start_age: int
+    end_age: int
+    heavenly_stem: str | None = None
+    earthly_branch: str | None = None
+    palace_index: int | None = None
+    palace_name: str | None = None
 
 
 class FourHua(BaseModel):
@@ -12,6 +24,17 @@ class FourHua(BaseModel):
     hua_quan: str | None = None
     hua_ke: str | None = None
     hua_ji: str | None = None
+
+
+class ChartMetadata(BaseModel):
+    """Metadata about the ziwei chart from provider."""
+
+    lunar_date: str | None = None
+    chinese_date: str | None = None
+    soul_palace_earthly_branch: str | None = None
+    body_palace_earthly_branch: str | None = None
+    body: str | None = None
+    five_elements_class: str | None = None
 
 
 class Palace(BaseModel):
@@ -27,6 +50,7 @@ class Palace(BaseModel):
     is_empty: bool | None = None
     borrowed_from_index: int | None = None
     borrowed_major_stars: list[str] | None = None
+    decadal: DecadalRange | None = None
 
 
 class RawChart(BaseModel):
@@ -35,6 +59,9 @@ class RawChart(BaseModel):
     birth_info_snapshot: dict
     palaces: list[Palace] = Field(default_factory=list)
     four_hua: FourHua | None = None
+    metadata: ChartMetadata | None = None
+    current_age: int | None = None
+    current_decadal: DecadalRange | None = None
 
 
 class NormalizedChart(BaseModel):
@@ -47,3 +74,6 @@ class NormalizedChart(BaseModel):
     body_palace_index: int | None = None
     five_elements_class: str | None = None
     lunar_info: dict | None = None
+    metadata: ChartMetadata | None = None
+    current_age: int | None = None
+    current_decadal: DecadalRange | None = None

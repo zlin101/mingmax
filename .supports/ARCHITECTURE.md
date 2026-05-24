@@ -76,15 +76,16 @@ HTTP Request
   -> BirthInfo schema validation
   -> AnalysisService
   -> ZiweiChartEngine
-  -> RawChart
-  -> ChartNormalizer (enriches with relations: opposite, san_fang_si_zheng, empty/borrowed)
-  -> NormalizedChart
-  -> build_chart_facts() (extracts structured evidence)
+  -> RawChart (with metadata: lunar_date, chinese_date, five_elements_class)
+  -> ChartNormalizer (enriches with relations: opposite, san_fang_si_zheng, empty/borrowed, decadal)
+  -> NormalizedChart (with current_age, current_decadal)
+  -> build_chart_facts() (extracts structured evidence with metadata, decadal, scope)
+  -> chart_facts (rich facts package: palaces, stars, mutagens, relations, metadata, decadal, evidence_index)
   -> ZiweiAnalysisAgent (passes chart_facts, not raw chart JSON)
-  -> LLMClient
+  -> LLMClient (with prompts supporting natal_chart + decadal_range analysis)
   -> AnalysisResult
   -> Markdown report
-  -> validate_analysis_output() (checks evidence consistency)
+  -> validate_analysis_output() (checks evidence consistency including decadal/metadata evidence IDs)
   -> HTTP Response
 ```
 
@@ -144,6 +145,35 @@ Branch 1-6 允许使用可预测的 Engine stub 和 Mock/真实 LLM Client 建�
 | 对宫 | `relation:<idx>:opposite:<opp>` | `relation:0:opposite:6` |
 | 三方四正 | `relation:<idx>:sfsz:<idxes>` | `relation:0:sfsz:0,4,6,8` |
 | 借星 | `borrowed:<idx>:from:<opp>:<name>` | `borrowed:8:from:2:太阴` |
+| 大限 | `decadal:<idx>:<start>-<end>` | `decadal:0:10-19` |
+| 元数据 | `metadata:<field>` | `metadata:lunar_date` |
+
+### 支持的分析层
+
+`chart_facts` 包含 `supported_analysis_layers` 和 `unsupported_analysis_layers` 字段明确定义分析边界：
+
+**支持的分析层：**
+- `natal_chart`：本命盘分析，基于出生时刻的静态命盘结构
+- `decadal_range`：大限区间级辅助分析，可以引用 chart_facts 中明确提供的 decadal facts
+
+**不支持的分析层：**
+- `annual`：流年分析
+- `monthly`：流月分析  
+- `daily`：流日分析
+- `hourly`：流时分析
+- `bazi`：八字四柱分析
+
+### 元数据信息
+
+`chart_facts.metadata` 包含命盘背景信息：
+- `lunar_date`：农历日期字符串
+- `chinese_date`：四柱字符串
+- `five_elements_class`：五行局
+- `soul_palace_earthly_branch`：命宫地支
+- `body_palace_earthly_branch`：身宫地支
+- `body`：身宫类型
+
+这些信息可作为命盘背景引用，但不得展开为八字分析或四柱推演。
 
 ### 对比工具
 
@@ -164,7 +194,7 @@ Branch 1-6 允许使用可预测的 Engine stub 和 Mock/真实 LLM Client 建�
 - 引用不存在的 evidence_index ID
 - 星曜-宫位绑定不一致（如"XX在YY宫"但实际不在）
 - 四化-宫位绑定不一致（如"YY宫XX化Z"但实际不在）
-- 引用大限、流年、流月、流日、流时等不支持的时间层
+- 引用流年、流月、流日、流时等不支持的时间层（大限已支持）
 - 包含绝对化/恐吓式表达
 - 报告是否包含免责声明
 

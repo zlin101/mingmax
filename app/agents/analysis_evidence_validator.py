@@ -18,7 +18,7 @@ class ValidationIssue(BaseModel):
 
 UNSAFE_PATTERNS = ["必然", "一定会", "命中注定", "绝对会", "注定", "不可避免", "肯定"]
 
-UNSUPPORTED_TIME_TERMS = ["大限", "流年", "流月", "流日", "流时"]
+UNSUPPORTED_TIME_TERMS = ["流年", "流月", "流日", "流时"]
 
 _ALL_MAJOR_STARS = {
     "紫微",
@@ -195,7 +195,11 @@ def _check_text_for_fabricated_evidence_ids(text: str, valid_ids: set[str]) -> l
     #   relation:<idx>:opposite:<idx>
     #   relation:<idx>:sfsz:<idxes>
     #   borrowed:<idx>:from:<idx>:<name>
-    pattern = r"(?:(?:palace|star|mutagen|relation|borrowed):\d+" r"(?::[\w,：\u4e00-\u9fff]+)*)"
+    #   decadal:<idx>:<start>-<end>
+    #   metadata:<field>
+    # Note: metadata types don't have numeric index after the prefix
+    pattern = r"(?:(?:palace|star|mutagen|relation|borrowed|decadal):\d+" r"(?::[\w,：\u4e00-\u9fff-]+)*)"
+    pattern += r"|(?:metadata:[\w_]+)"
     for match in re.finditer(pattern, text):
         candidate = match.group(0)
         if candidate not in valid_ids:

@@ -134,39 +134,48 @@
 - 测试摘要：Codex 验收时 260 passed；修复了 P1（辅星/杂曜 evidence_id 未写入 evidence_index）和 P2（mutagens 分支重复赋值）。
 - 遗留风险：审计文档中仍有 provider_unknown 字段（农历信息、四柱、神煞等），后续需单独验证 provider 能力而非让 LLM 补算。
 
-## 当前任务
-
 ### Branch 15: iztro-py 原始输出快照与字段能力审计
 
 - 分支名：`feature/v0.1-iztro-provider-snapshot-audit`
-- 负责分工：Claude 负责开发、测试、commit、push；Codex 负责 code review 和验收；merge 只由项目负责人执行。
-- 背景：Branch 13/14 已建立 evidence 体系并增强 `chart_facts`，但没有先完整落盘和审计 `iztro-py` 原始返回对象，导致农历、四柱、大限、命主/身主、五行局等字段仍停留在 `provider_unknown`。本分支不是继续扩展 Prompt，而是先把 provider 能力边界搞清楚。
+- 目标：落盘 `iztro-py` 原始输出快照和字段 inventory，确认 provider 真实字段能力，避免继续根据当前 schema 或 Prompt 需求反推 provider 能力。
+- 关键交付：`provider_snapshot.py` 安全 serializer、`dump_iztro_provider_snapshot.py` 快照脚本、`.local/iztro_snapshots/` ignored 输出、`CHART_FACTS_COMPLETENESS_AUDIT.md` Branch 15 字段能力审计、D028 决策。
+- 重要发现：`iztro-py` 原生提供 `lunar_date`、`chinese_date`、`earthly_branch_of_soul_palace`、`earthly_branch_of_body_palace`、`body`、`palace[].decadal`、`star.scope` 等当前未充分吸收字段。
+- 重要修复：private 样本输出强制限制到 `.local/iztro_snapshots/`，拒绝农历私密样本和未知性别，inventory 不输出字符串原文样例，direct raw 调用复用真太阳时口径。
+- 测试摘要：Codex 修复后 `uv run black --check .`、`uv run isort --check-only .`、`uv run flake8 .`、`uv run pytest -q` 均通过，测试为 `283 passed`；synthetic snapshot 脚本可生成 raw snapshot 和 inventory。
+- 遗留风险：审计已确认 provider 信息丰富，但正式业务结构、`chart_facts`、Prompt 和 validator 尚未吸收这些字段；大限数据存在，但 mingmax 尚无大限分析能力。
 
-#### 目标
+## 当前任务
 
-建立一个可复用的 provider 审计工具链：
+### Branch 16/17: 丰富命盘事实层与大限基础分析能力
+
+- 分支名：`feature/v0.1-rich-chart-facts-and-decadal-analysis`
+- 负责分工：Claude 负责开发、测试、commit 和 push；Codex 负责 code review 和验收；merge 只由项目负责人执行。
+- 背景：Branch 15 已确认 `iztro-py` 原生提供多项当前未吸收字段，包括农历日期、四柱字符串、命身宫地支、身宫类型、星曜 scope、大限 decadal。当前 LLM 输出仍提示“缺乏大限、流年等时间维度”，这对大限已经不再完全准确。本轮将 Branch 16/17 合并：先吸收 provider 原生事实，再升级 `chart_facts`、Prompt 和 validator，开放大限区间级辅助分析。
+
+#### 核心目标
+
+将系统从“静态本命盘 + 少量 evidence 约束”升级为：
 
 ```text
-BirthInfo / synthetic sample
-  -> 调用 iztro-py
-  -> 生成可序列化 raw provider snapshot
-  -> 生成字段 inventory
-  -> 更新字段完整度审计文档
-  -> 再决定后续哪些字段进入正式业务结构
+iztro-py rich provider facts
+  -> RawChart 完整吸收低风险原生字段
+  -> NormalizedChart 保真标准化
+  -> chart_facts rich package
+  -> LLM 支持本命盘 + 大限区间级辅助分析
+  -> validator 拦截伪造、错误绑定、越界时间层和不安全表达
 ```
 
-本分支完成后，项目应能回答：
+本轮完成后：
 
-- `iztro-py` 顶层 astrolabe 实际有哪些 public 字段；
-- 每个 palace 实际有哪些字段；
-- major/minor/adjective star 实际有哪些字段；
-- 四化、大限、五行局、命宫/身宫、农历、四柱等字段是否真实存在；
-- 哪些字段来自 `iztro-py` 原生，哪些只能由 mingmax 派生，哪些需要额外历法库，哪些暂不支持；
-- `/home/liam/git/ziwei-doushu` 参考项目中传给 LLM 的 chart 字段，哪些可以在 mingmax 中复用，哪些不应复用。
+- LLM 不应再笼统说“缺乏大限信息”；
+- 可以分析“当前大限落在哪个宫、该宫星曜和本命结构对主题的倾向影响”；
+- 仍不得分析流年、流月、流日、流时；
+- 仍不得预测具体年份、具体事件是否发生或最终人生结果；
+- 前端完整重构暂不做，只允许最小展示/调试字段补充，文墨天机式高信息密度 UI 另开后续分支。
 
 #### 必须阅读
 
-开发前先阅读：
+开发前必须阅读：
 
 - `AGENTS.md`
 - `.supports/PROJECT_CONTEXT.md`
@@ -174,127 +183,257 @@ BirthInfo / synthetic sample
 - `.supports/ARCHITECTURE.md`
 - `.supports/TASKS.md`
 - `.supports/CHART_FACTS_COMPLETENESS_AUDIT.md`
-- `/home/liam/git/ziwei-doushu/lib/ziwei/types.ts`
-- `/home/liam/git/ziwei-doushu/lib/ziwei/algorithm.ts`
-- `/home/liam/git/ziwei-doushu/components/ChatPanel.tsx`
-- `/home/liam/git/ziwei-doushu/components/InsightPanel.tsx`
+- `.supports/PROMPT_GUIDE.md`
+- `.supports/API_SPEC.md`
+- `app/engines/providers/iztro_provider.py`
+- `app/schemas/chart.py`
+- `app/engines/chart_normalizer.py`
+- `app/engines/chart_facts.py`
+- `app/agents/analysis_evidence_validator.py`
+- `app/prompts/ziwei_analysis.md`
+- `app/prompts/theme_analysis.md`
+- `app/prompts/report.md`
+- 文墨天机截图仅作为信息密度参考，敏感图片必须放在 .local/，不得提交到仓库。
 
-#### 实现范围
+#### 设计原则
 
-1. 新增 provider raw snapshot 工具
+- provider 原生事实内部尽量完整吸收；
+- `chart_facts` 尽量丰富，但每类事实要标注来源、支持状态和分析边界；
+- 大限数据可以进入分析，但只开放“区间级、宫位级、倾向性”分析；
+- validator 不再把“大限”一概视为 unsupported；但继续禁止流年、流月、流日、流时；
+- `chinese_date` 可作为四柱字符串背景事实，不开放八字分析；
+- 不让 LLM 推算 provider 未给出的字段；
+- 不引入 LangChain、LangGraph、CrewAI、向量数据库或复杂 Agent 框架；
+- 不读取、提交或泄露 `.supports/TEST_INFO_EVA.md` 中的开发者私密信息。
 
-   建议文件：
+#### 阶段 1：Schema 与 provider 字段吸收
 
-   - `scripts/dump_iztro_provider_snapshot.py`
+建议修改：
 
-   要求：
+- `app/schemas/chart.py`
+- `app/engines/providers/iztro_provider.py`
+- `app/engines/chart_normalizer.py`
+- 相关 tests
 
-   - 使用合成出生信息作为默认样本，不读取 `.supports/TEST_INFO_EVA.md`；
-   - 允许通过参数传入本地私密样本路径，但输出必须进入 ignored 本地目录，例如 `.local/iztro_snapshots/`；
-   - 不把真实出生日期、地点、经度、姓名或完整私密命盘写入仓库；
-   - 直接调用当前 `iztro-py` 能力，必要时同时记录 `ZiweiChartEngine` / provider 包装后的结果，但重点是原始对象；
-   - 输出 JSON 文件，例如：
+需要新增或调整的结构：
 
-     ```text
-     .local/iztro_snapshots/<timestamp>-raw-provider-snapshot.json
-     .local/iztro_snapshots/<timestamp>-field-inventory.md
-     ```
+1. `Star.scope: str | None`
+   - 来源：`star.scope`
+   - 仅保存 provider 原生值，不翻译、不推断。
 
-2. 新增安全 serializer
+2. `DecadalRange`
+   - 字段建议：
+     - `start_age: int`
+     - `end_age: int`
+     - `heavenly_stem: str | None`
+     - `earthly_branch: str | None`
+     - `palace_index: int | None`
+     - `palace_name: str | None`
+   - 来源：`palace.decadal`
+   - 如果 `range` 缺失或格式异常，不能编造年龄段。
 
-   要求：
+3. `ChartMetadata` 或等价结构
+   - 字段建议：
+     - `lunar_date: str | None`
+     - `chinese_date: str | None`
+     - `soul_palace_earthly_branch: str | None`
+     - `body_palace_earthly_branch: str | None`
+     - `body: str | None`
+   - 注意：`chinese_date` 是四柱字符串事实，不代表本系统开放八字分析。
 
-   - 能递归遍历 `iztro-py` 返回对象、palace、star 等对象；
-   - 支持基本类型、list、tuple、dict、enum、pydantic model；
-   - 记录对象类型名；
-   - 跳过 callable；
-   - 限制递归深度，避免循环引用；
-   - 对不可序列化字段降级为字符串或类型描述；
-   - 不使用 `print` 作为库内日志；脚本入口可以输出简短完成信息。
+4. `RawChart` / `NormalizedChart`
+   - 必须透传 `metadata` 或等价字段；
+   - `Palace` 必须可承载 `decadal`；
+   - Normalizer 不得丢弃 provider 原生事实。
 
-   建议放置：
+5. 当前大限识别
+   - 可以新增 `current_age`、`current_decadal` 或等价字段；
+   - 年龄口径必须文档化，建议本轮先采用“虚岁/排盘常用年龄”或明确“周岁近似”，不要含糊。
+   - 如果口径无法确定，先只提供全部 decadal 列表，不高亮当前大限；不要伪精确。
 
-   - `app/engines/providers/provider_snapshot.py`
+测试要求：
 
-3. 生成字段 inventory
+- provider 能提取 `lunar_date`、`chinese_date`、命身宫地支、`body`；
+- provider 能提取 `star.scope`；
+- provider 能提取每宫 `decadal`；
+- normalizer 完整透传 metadata、scope、decadal；
+- 异常/缺失 decadal 不导致排盘失败；
+- 不使用私密样本作为测试 fixture。
 
-   字段清单至少覆盖：
+#### 阶段 2：Rich chart_facts
 
-   - astrolabe 顶层字段；
-   - palace 字段；
-   - major star 字段；
-   - minor star 字段；
-   - adjective star 字段；
-   - mutagen / 四化相关字段；
-   - decadal / 大限相关字段；
-   - five elements / 五行局相关字段；
-   - soul/body palace / 命宫身宫相关字段；
-   - lunar / 农历相关字段；
-   - pillars / 四柱相关字段。
+建议修改：
 
-   inventory 不需要包含私密样本值，只需要字段路径、类型、是否存在、样例值摘要。
+- `app/engines/chart_facts.py`
+- `tests/test_chart_facts.py`
 
-4. 对齐 TS 参考项目
+`chart_facts` 需要新增：
 
-   更新或新增文档，建议优先更新：
+- `metadata`
+  - `lunar_date`
+  - `chinese_date`
+  - `soul_palace_earthly_branch`
+  - `body_palace_earthly_branch`
+  - `body`
+  - `supported_analysis_layers`
+  - `unsupported_analysis_layers`
 
-   - `.supports/CHART_FACTS_COMPLETENESS_AUDIT.md`
+- `palaces[].decadal`
+  - 起止年龄；
+  - 所在宫；
+  - 宫干支；
+  - evidence_id，例如 `decadal:<palace_index>:<start>-<end>`。
 
-   需要新增一个“TS 参考项目字段对齐”小节，明确：
+- `star.scope`
+  - 加入 `major_star_facts`、`minor_star_facts`、`adjective_star_facts`。
 
-   - `BirthInfo` 字段哪些已支持；
-   - `LunarInfo` 在 TS 项目中来自 `lunar-javascript`，不要误认为 iztro 原生；
-   - `Star.type = lucky/sha` 是 TS 项目规则映射，不是 iztro 原生结构；
-   - `ziweiPos`、`currentAge`、`currentDaXianIndex` 属于派生字段；
-   - `daXianAge` 是否能从 `iztro-py` 原始对象中拿到；
-   - TS 项目把完整 `chart` 发给 LLM，而 mingmax 当前保持 `chart_facts + evidence_id + validator`，只借鉴字段丰富度，不照搬整包 chart 入 prompt。
+- `evidence_index`
+  - 新增 `metadata`、`decadal` 类型证据；
+  - 保持现有 `palace/star/mutagen/relation/borrowed` 不破坏。
 
-5. 更新审计结论
+支持边界建议：
 
-   将 `.supports/CHART_FACTS_COMPLETENESS_AUDIT.md` 中能够确认的 `provider_unknown` 改成明确状态：
+```json
+"supported_analysis_layers": ["natal_chart", "decadal_range"],
+"unsupported_analysis_layers": ["annual", "monthly", "daily", "hourly", "bazi"]
+```
 
-   - `provider_supported`
-   - `derived_by_mingmax`
-   - `requires_extra_calendar_library`
-   - `unsupported_by_provider`
-   - `unsupported_v0.1`
-   - `needs_followup`
+测试要求：
 
-   不确定的字段必须写明“为什么仍不确定”，不能只保留空泛的 `?`。
+- rich facts 包含 metadata；
+- 星曜 facts 包含 scope；
+- decadal facts 和 evidence_index 一致；
+- supported/unsupported analysis layers 存在且语义正确；
+- 旧 evidence id 仍保持兼容。
+
+#### 阶段 3：Prompt 与 LLM 输出边界重构
+
+建议修改：
+
+- `app/prompts/ziwei_analysis.md`
+- `app/prompts/theme_analysis.md`
+- `app/prompts/report.md`
+- `app/llm/mock.py`
+- 相关 tests
+
+Prompt 必须从旧口径：
+
+```text
+禁止引用大限、流年、流月、流日、流时等时间层概念——当前系统仅支持本命盘分析。
+```
+
+改为新口径：
+
+```text
+当前系统支持本命盘分析与大限区间级辅助分析。
+可以引用 chart_facts 中明确提供的 decadal facts，说明某一大限区间对应宫位、星曜、四化与主题倾向。
+不得分析流年、流月、流日、流时。
+不得预测具体年份、具体事件发生与否、婚期、发财年份、疾病发生时间或最终人生结果。
+不得基于 chinese_date 展开八字分析。
+```
+
+LLM 输出结构可以保持现有 JSON 契约，但内容必须允许：
+
+- 在 `strong_signals` / `weak_hypotheses` / `cross_checks` 中引用 decadal evidence id；
+- 在 `uncertainty` 中准确说明“支持大限区间级分析，但不支持流年等更细时间层”。
+
+测试要求：
+
+- Prompt 文本不再说系统完全缺乏大限；
+- Prompt 明确禁止流年/流月/流日/流时；
+- Prompt 明确禁止具体年份事件预测；
+- Mock LLM 输出适配新边界，不再生成过时 uncertainty。
+
+#### 阶段 4：validator 调整
+
+建议修改：
+
+- `app/agents/analysis_evidence_validator.py`
+- 相关 tests
+
+必须调整：
+
+- `UNSUPPORTED_TIME_TERMS` 不再包含“大限”；
+- 新增或调整规则，禁止：
+  - `流年`
+  - `流月`
+  - `流日`
+  - `流时`
+  - 具体年份预测类表达，如“2028 年必然结婚”“某年一定发财”等；
+- 支持校验 decadal evidence id：
+  - `decadal:<idx>:<start>-<end>` 不存在时应报 `FABRICATED_EVIDENCE_ID`；
+  - 引用 chart_facts 中不存在的大限区间应报错。
+
+测试要求：
+
+- 文本提到 chart_facts 中存在的大限不报 `UNSUPPORTED_TIME_LAYER`；
+- 文本提到流年/流月/流日/流时报 `UNSUPPORTED_TIME_LAYER`；
+- 伪造 decadal evidence id 报 `FABRICATED_EVIDENCE_ID`；
+- 绝对化大限断语仍报 `UNSAFE_EXPRESSION`。
+
+#### 阶段 5：API / 前端最小兼容
+
+本轮不做文墨天机式完整 UI 重构，但需要保证：
+
+- API 返回的 chart JSON 包含新增 metadata、star.scope、palace.decadal；
+- 静态前端不因新增字段报错；
+- 如改前端，只允许在命盘摘要/宫位详情中最小展示：
+  - 农历日期；
+  - 四柱字符串；
+  - 大限年龄段；
+  - 星曜 scope。
+
+不做：
+
+- 不重构完整盘面布局；
+- 不新增底部流年/流月/流日/流时切换；
+- 不实现飞星、三合、四化模式切换；
+- 不新增复杂前端框架。
+
+#### 文档更新
+
+必须更新：
+
+- `.supports/ARCHITECTURE.md`
+  - 更新数据流与 rich facts package；
+  - 明确大限区间级分析支持范围。
+
+- `.supports/API_SPEC.md`
+  - 更新 chart schema 示例；
+  - 标注新增 metadata、scope、decadal。
+
+- `.supports/PROMPT_GUIDE.md`
+  - 更新 Prompt 边界；
+  - 明确支持本命盘 + 大限区间级辅助分析；
+  - 明确不支持流年/流月/流日/流时和八字分析。
+
+- `.supports/CHART_FACTS_COMPLETENESS_AUDIT.md`
+  - 将相关字段从“未暴露”更新为“已吸收/已传入 facts/分析支持状态”。
+
+- `.supports/DECISIONS.md`
+  - 如实现中确认年龄口径或 decadal schema，需要追加决策。
 
 #### 明确不做
 
-- 不在本分支继续优化 LLM Prompt 文风；
-- 不让 LLM 补算任何 provider 未确认字段；
-- 不一次性把所有发现字段加入公开 API；
-- 不大规模改 `RawChart` / `NormalizedChart` / `chart_facts` schema；
-- 不实现大限、流年、流月、流日、流时分析；
-- 不引入 LangChain、LangGraph、CrewAI、向量数据库或复杂 Agent 框架；
-- 不读取、提交或泄露 `.supports/TEST_INFO_EVA.md` 中的开发者私密信息；
-- 不把 `.local/iztro_snapshots/` 中的私密快照提交到仓库。
+- 不实现流年、流月、流日、流时；
+- 不做八字分析；
+- 不预测具体年份、具体事件发生时间或最终人生结果；
+- 不照抄文墨天机 UI；
+- 不引入新的复杂前端框架；
+- 不读取 `.supports/TEST_INFO_EVA.md` 或提交任何私密样本；
+- 不把 `.local/` 快照文件加入仓库；
+- 不删除 Branch 13/14 的 evidence/validator 体系，而是在 richer facts 基础上调整其职责。
 
-#### 允许的小范围业务修复
+#### 推荐 TDD 步骤
 
-如果审计发现当前已经有明确字段可得、且 mingmax 已有 schema 承载但 provider 漏取，可以做小范围修复，但必须满足：
+1. 先写 schema/provider 失败测试，再实现字段提取；
+2. 再写 normalizer 透传测试；
+3. 再写 chart_facts rich package 测试；
+4. 再写 Prompt 文本边界测试；
+5. 再写 validator 时间层测试；
+6. 最后补 API/前端最小兼容测试和文档。
 
-- 修改范围小；
-- 有单元测试；
-- 文档说明字段来源；
-- 不改变公开 API 契约的主要结构；
-- 不把本分支变成“字段大扩张”。
-
-#### 测试要求
-
-至少补充：
-
-- serializer 能处理嵌套对象、list、dict、enum、callable、循环引用或重复引用；
-- snapshot 脚本默认使用合成样本，不读取私密样本；
-- 输出目录默认为 `.local/iztro_snapshots/`；
-- inventory 生成不包含私密输入原文；
-- `.local/iztro_snapshots/` 被 `.gitignore` 排除；
-- 文档中不包含 `.supports/TEST_INFO_EVA.md` 的真实出生信息。
-
-建议执行：
+#### 建议测试命令
 
 ```bash
 uv run black --check .
@@ -305,9 +444,11 @@ uv run pytest -q
 
 #### 验收标准
 
-- 可以通过一条 `uv run ...` 命令生成 raw provider snapshot 和 field inventory；
-- 仓库内不包含任何私密样本值或真实个人出生信息；
-- `.supports/CHART_FACTS_COMPLETENESS_AUDIT.md` 能清楚说明 `iztro-py` 到底支持哪些字段；
-- TS 参考项目字段来源被明确拆分为 iztro 原生、TS 派生、额外历法库、暂不复用；
-- Branch 13/14 遗留的 `provider_unknown` 至少被系统性收敛，不再继续靠猜；
-- Codex review 时重点检查隐私边界、serializer 安全性、字段来源判断、是否过度扩张业务 schema。
+- `iztro-py` 已确认的低风险原生字段被正式吸收到内部结构；
+- `chart_facts` 成为 rich facts package，而不是只含少量 evidence 骨架；
+- LLM Prompt 支持大限区间级辅助分析，不再声称完全缺乏大限；
+- validator 允许合法大限引用，但继续阻止流年/流月/流日/流时和具体年份预测；
+- API/前端不因新增字段回归；
+- 文档准确描述：支持本命盘 + 大限区间级辅助分析，不支持流年等细时间层；
+- 所有格式、lint、测试命令通过；
+- Codex review 重点检查：字段来源、schema 边界、大限分析是否越界、validator 是否过严或过松、是否泄露私密信息。

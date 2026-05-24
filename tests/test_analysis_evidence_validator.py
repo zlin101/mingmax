@@ -547,7 +547,7 @@ def test_invalid_mutagen_palace_binding() -> None:
 
 def test_unsupported_time_layer_reference() -> None:
     facts = _chart_facts()
-    analysis = _analysis(strong_signals=["大限显示事业压力"])
+    analysis = _analysis(strong_signals=["流年显示事业压力"])
     issues = validate_analysis_output(
         chart_facts=facts,
         analysis=analysis,
@@ -559,7 +559,7 @@ def test_unsupported_time_layer_reference() -> None:
     assert len(unsupported) >= 1
 
 
-@pytest.mark.parametrize("term", ["大限", "流年", "流月", "流日", "流时"])
+@pytest.mark.parametrize("term", ["流年", "流月", "流日", "流时"])
 def test_unsupported_time_layer_variants(term: str) -> None:
     facts = _chart_facts()
     analysis = _analysis(summary=f"{term}运行趋势分析")
@@ -572,3 +572,179 @@ def test_unsupported_time_layer_variants(term: str) -> None:
     )
     unsupported = [i for i in issues if i.code == "UNSUPPORTED_TIME_LAYER"]
     assert len(unsupported) >= 1
+
+
+# --- decadal and metadata evidence ID tests ---
+
+
+def test_valid_decadal_evidence_id_not_flagged() -> None:
+    """decadal:0:10-19 exists in evidence_index and should not be flagged."""
+    from app.engines.chart_facts import build_chart_facts
+    from app.schemas.chart import DecadalRange, NormalizedChart, Palace
+
+    chart = NormalizedChart(
+        chart_id="test",
+        source="test",
+        summary="test",
+        palaces=[
+            Palace(
+                index=0,
+                name="命宫",
+                stars=[],
+                opposite_palace_index=6,
+                san_fang_si_zheng_indexes=[0, 4, 6, 8],
+                is_empty=False,
+                decadal=DecadalRange(
+                    start_age=10,
+                    end_age=19,
+                    heavenly_stem="甲",
+                    earthly_branch="子",
+                    palace_index=0,
+                    palace_name="命宫",
+                ),
+            ),
+        ],
+        ming_palace_index=0,
+    )
+    chart_facts = build_chart_facts(chart)
+
+    analysis = _analysis(strong_signals=["依据 decadal:0:10-19 观察到"])
+    issues = validate_analysis_output(
+        chart_facts=chart_facts,
+        analysis=analysis,
+        theme_analyses=[],
+        followup_questions=[],
+        report_markdown=DISCLAIMER,
+    )
+    fabricated = [i for i in issues if i.code == "FABRICATED_EVIDENCE_ID"]
+    assert len(fabricated) == 0
+
+
+def test_fabricated_decadal_evidence_id() -> None:
+    """decadal:99:99-109 does not exist in evidence_index."""
+    from app.engines.chart_facts import build_chart_facts
+    from app.schemas.chart import DecadalRange, NormalizedChart, Palace
+
+    chart = NormalizedChart(
+        chart_id="test",
+        source="test",
+        summary="test",
+        palaces=[
+            Palace(
+                index=0,
+                name="命宫",
+                stars=[],
+                opposite_palace_index=6,
+                san_fang_si_zheng_indexes=[0, 4, 6, 8],
+                is_empty=False,
+                decadal=DecadalRange(
+                    start_age=10,
+                    end_age=19,
+                    heavenly_stem="甲",
+                    earthly_branch="子",
+                    palace_index=0,
+                    palace_name="命宫",
+                ),
+            ),
+        ],
+        ming_palace_index=0,
+    )
+    chart_facts = build_chart_facts(chart)
+
+    analysis = _analysis(strong_signals=["依据 decadal:99:99-109 观察到"])
+    issues = validate_analysis_output(
+        chart_facts=chart_facts,
+        analysis=analysis,
+        theme_analyses=[],
+        followup_questions=[],
+        report_markdown=DISCLAIMER,
+    )
+    fabricated = [i for i in issues if i.code == "FABRICATED_EVIDENCE_ID"]
+    assert len(fabricated) >= 1
+
+
+def test_valid_metadata_evidence_id_not_flagged() -> None:
+    """metadata:lunar_date exists in evidence_index and should not be flagged."""
+    from app.engines.chart_facts import build_chart_facts
+    from app.schemas.chart import ChartMetadata, NormalizedChart, Palace
+
+    chart = NormalizedChart(
+        chart_id="test",
+        source="test",
+        summary="test",
+        palaces=[
+            Palace(
+                index=0,
+                name="命宫",
+                stars=[],
+                opposite_palace_index=6,
+                san_fang_si_zheng_indexes=[0, 4, 6, 8],
+                is_empty=False,
+            ),
+        ],
+        ming_palace_index=0,
+        metadata=ChartMetadata(lunar_date="二零二六年四月十八日"),
+    )
+    chart_facts = build_chart_facts(chart)
+
+    analysis = _analysis(strong_signals=["依据 metadata:lunar_date 观察到"])
+    issues = validate_analysis_output(
+        chart_facts=chart_facts,
+        analysis=analysis,
+        theme_analyses=[],
+        followup_questions=[],
+        report_markdown=DISCLAIMER,
+    )
+    fabricated = [i for i in issues if i.code == "FABRICATED_EVIDENCE_ID"]
+    assert len(fabricated) == 0
+
+
+def test_fabricated_metadata_evidence_id() -> None:
+    """metadata:nonexistent_field does not exist in evidence_index."""
+    from app.engines.chart_facts import build_chart_facts
+    from app.schemas.chart import ChartMetadata, NormalizedChart, Palace
+
+    chart = NormalizedChart(
+        chart_id="test",
+        source="test",
+        summary="test",
+        palaces=[
+            Palace(
+                index=0,
+                name="命宫",
+                stars=[],
+                opposite_palace_index=6,
+                san_fang_si_zheng_indexes=[0, 4, 6, 8],
+                is_empty=False,
+            ),
+        ],
+        ming_palace_index=0,
+        metadata=ChartMetadata(lunar_date="二零二六年四月十八日"),
+    )
+    chart_facts = build_chart_facts(chart)
+
+    analysis = _analysis(strong_signals=["依据 metadata:nonexistent_field 观察到"])
+    issues = validate_analysis_output(
+        chart_facts=chart_facts,
+        analysis=analysis,
+        theme_analyses=[],
+        followup_questions=[],
+        report_markdown=DISCLAIMER,
+    )
+    fabricated = [i for i in issues if i.code == "FABRICATED_EVIDENCE_ID"]
+    assert len(fabricated) >= 1
+
+
+def test_supported_decadal_term_not_flagged() -> None:
+    """大限 is now supported and should not trigger UNSUPPORTED_TIME_LAYER."""
+    facts = _chart_facts()
+    analysis = _analysis(strong_signals=["大限显示事业发展趋势"])
+    issues = validate_analysis_output(
+        chart_facts=facts,
+        analysis=analysis,
+        theme_analyses=[],
+        followup_questions=[],
+        report_markdown=DISCLAIMER,
+    )
+    unsupported = [i for i in issues if i.code == "UNSUPPORTED_TIME_LAYER"]
+    assert len(unsupported) == 0

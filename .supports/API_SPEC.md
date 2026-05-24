@@ -154,6 +154,14 @@ self_understanding
 - 当前 v0.1 真实排盘使用 `birth_datetime` 在 `timezone` 对应地区的本地日期与小时，默认始终进行真太阳时校正。
 - `NormalizedChart` 的 `palaces` 中每个宫位包含 `opposite_palace_index`、`san_fang_si_zheng_indexes`、`is_empty`、`borrowed_from_index`、`borrowed_major_stars` 等确定性关系字段。
 - Agent 传给 LLM 的 context 是 `chart_facts` 结构化证据，不是原始 chart JSON。
+- `chart_facts` 结构（Branch 16/17+）包含：
+  - `supported_analysis_layers`：支持的分析层（`natal_chart`、`decadal_range`）
+  - `unsupported_analysis_layers`：不支持的分析层（`annual`、`monthly`、`daily`、`hourly`、`bazi`）
+  - `metadata`：命盘背景信息（`lunar_date`、`chinese_date`、`five_elements_class` 等）
+  - `palaces[]`：宫位数组，每个包含 `major_star_facts`、`minor_star_facts`、`adjective_star_facts`（结构化星曜事实，包含 `name`、`brightness`、`category`、`scope`、`evidence_id`）
+  - `palaces[].decadal`：宫位大限信息（`start_age`、`end_age`、`heavenly_stem`、`earthly_branch`、`palace_name`）
+  - `current_age` / `current_decadal`：当前分析上下文
+  - `evidence_index`：证据 ID 列表，支持类型：`palace`、`star`、`mutagen`、`relation`、`borrowed`、`decadal`、`metadata`
 
 ## 真实 LLM 运行时配置
 
@@ -189,18 +197,21 @@ Branch 12 前端命盘核验视图消费以下 `chart` 字段：
 - `chart.source`：排盘来源，展示在来源标识和摘要区。
 - `chart.chart_id`：命盘唯一标识，展示在摘要区。
 - `chart.ming_palace_index` / `chart.body_palace_index`：命宫/身宫 index，前端据此查找对应宫位名称。
-- `chart.five_elements_class`：五行局，可能为 `null`，此时显示"暂未提供"。
-- `chart.lunar_info`：农历信息，可能为 `null`，此时显示"暂未提供"。
+- `chart.five_elements_class`：五行局（Branch 16/17+ 来自 `chart.metadata.five_elements_class`）。
+- `chart.metadata`：元数据信息，包含 `lunar_date`（农历日期）、`chinese_date`（四柱字符串）、`five_elements_class`、`soul_palace_earthly_branch`、`body_palace_earthly_branch`、`body`（身宫类型）。
+- `chart.current_age`：当前虚岁（Branch 16/17+）。
+- `chart.current_decadal`：当前大限信息（Branch 16/17+），包含 `start_age`、`end_age`、`heavenly_stem`、`earthly_branch`、`palace_name`。
 - `chart.palaces[].index`：宫位 index（0-11），前端按固定映射将 index 映射到 4x4 网格位置。
 - `chart.palaces[].name`：宫位名称。
 - `chart.palaces[].heavenly_stem` / `earthly_branch`：天干地支。
-- `chart.palaces[].stars[].name` / `brightness` / `category`：星曜信息。
+- `chart.palaces[].stars[].name` / `brightness` / `category` / `scope`：星曜信息（Branch 16/17+ 增加 `scope` 字段）。
 - `chart.palaces[].four_hua`：宫位级四化（`hua_lu`/`hua_quan`/`hua_ke``/`hua_ji`），可能为 `null`。
 - `chart.palaces[].is_body_palace`：身宫标记。
 - `chart.palaces[].opposite_palace_index`：对宫 index。
 - `chart.palaces[].san_fang_si_zheng_indexes`：三方四正 indexes。
 - `chart.palaces[].is_empty`：空宫标记。
 - `chart.palaces[].borrowed_from_index` / `borrowed_major_stars`：借星来源。
+- `chart.palaces[].decadal`：该宫位的大限信息（Branch 16/17+），包含 `start_age`、`end_age`、`heavenly_stem`、`earthly_branch`、`palace_name`。
 
 约束：
 

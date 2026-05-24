@@ -47,6 +47,7 @@ class ChartNormalizer:
                     is_empty=empty,
                     borrowed_from_index=borrowed_idx,
                     borrowed_major_stars=borrowed_stars,
+                    decadal=p.decadal,
                 )
             )
 
@@ -58,4 +59,17 @@ class ChartNormalizer:
             four_hua=raw_chart.four_hua,
             ming_palace_index=ming_index,
             body_palace_index=body_index,
+            five_elements_class=(
+                raw_chart.metadata.five_elements_class
+                if raw_chart.metadata and raw_chart.metadata.five_elements_class
+                else None
+            ),
+            lunar_info=(
+                {"lunar_date": raw_chart.metadata.lunar_date}
+                if raw_chart.metadata and raw_chart.metadata.lunar_date
+                else None
+            ),
+            metadata=raw_chart.metadata,
+            current_age=raw_chart.current_age,
+            current_decadal=raw_chart.current_decadal,
         )
