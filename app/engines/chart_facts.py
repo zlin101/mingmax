@@ -2,12 +2,13 @@ from app.schemas.chart import NormalizedChart, Palace, Star
 
 
 def _build_structured_star_fact(star: Star, palace_index: int, palace_name: str) -> dict:
-    """Build structured star fact with name, brightness, category, and evidence_id."""
+    """Build structured star fact with name, brightness, category, scope, and evidence_id."""
     evidence_id = f"star:{palace_index}:{star.name}"
     return {
         "name": star.name,
         "brightness": star.brightness,
         "category": star.category,
+        "scope": star.scope,
         "evidence_id": evidence_id,
     }
 
@@ -145,6 +146,27 @@ def build_chart_facts(chart: NormalizedChart) -> dict:
             fact["opposite_palace"] = opp.name if opp else None
         if p.san_fang_si_zheng_indexes:
             fact["san_fang_si_zheng"] = [by_index[idx].name for idx in p.san_fang_si_zheng_indexes if idx in by_index]
+
+        # Add decadal information if available
+        if p.decadal:
+            fact["decadal"] = {
+                "start_age": p.decadal.start_age,
+                "end_age": p.decadal.end_age,
+                "heavenly_stem": p.decadal.heavenly_stem,
+                "earthly_branch": p.decadal.earthly_branch,
+                "palace_name": p.decadal.palace_name,
+            }
+
+            # Evidence: decadal range
+            if p.decadal.start_age is not None and p.decadal.end_age is not None:
+                evidence_index.append(
+                    {
+                        "id": f"decadal:{p.index}:{p.decadal.start_age}-{p.decadal.end_age}",
+                        "type": "decadal",
+                        "label": f"{p.name}{p.decadal.start_age}-{p.decadal.end_age}岁大限",
+                    }
+                )
+
         palace_facts.append(fact)
 
     result: dict = {
@@ -161,8 +183,57 @@ def build_chart_facts(chart: NormalizedChart) -> dict:
         "four_hua": chart.four_hua.model_dump(exclude_none=True) if chart.four_hua else {},
         "palaces": palace_facts,
         "evidence_index": evidence_index,
+        "supported_analysis_layers": ["natal_chart", "decadal_range"],
+        "unsupported_analysis_layers": ["annual", "monthly", "daily", "hourly", "bazi"],
     }
+
+    # Add metadata if available
+    if chart.metadata:
+        metadata_dict: dict = {}
+        if chart.metadata.lunar_date:
+            metadata_dict["lunar_date"] = chart.metadata.lunar_date
+            # Evidence: lunar_date
+            evidence_index.append(
+                {
+                    "id": "metadata:lunar_date",
+                    "type": "metadata",
+                    "label": f"农历日期: {chart.metadata.lunar_date}",
+                }
+            )
+        if chart.metadata.chinese_date:
+            metadata_dict["chinese_date"] = chart.metadata.chinese_date
+            # Evidence: chinese_date
+            evidence_index.append(
+                {
+                    "id": "metadata:chinese_date",
+                    "type": "metadata",
+                    "label": f"四柱: {chart.metadata.chinese_date}",
+                }
+            )
+        if chart.metadata.soul_palace_earthly_branch:
+            metadata_dict["soul_palace_earthly_branch"] = chart.metadata.soul_palace_earthly_branch
+        if chart.metadata.body_palace_earthly_branch:
+            metadata_dict["body_palace_earthly_branch"] = chart.metadata.body_palace_earthly_branch
+        if chart.metadata.body:
+            metadata_dict["body"] = chart.metadata.body
+        if chart.metadata.five_elements_class:
+            metadata_dict["five_elements_class"] = chart.metadata.five_elements_class
+        if metadata_dict:
+            result["metadata"] = metadata_dict
+
     if chart.five_elements_class:
         result["five_elements_class"] = chart.five_elements_class
+
+    # Add current analysis context if available
+    if chart.current_age is not None:
+        result["current_age"] = chart.current_age
+    if chart.current_decadal:
+        result["current_decadal"] = {
+            "start_age": chart.current_decadal.start_age,
+            "end_age": chart.current_decadal.end_age,
+            "heavenly_stem": chart.current_decadal.heavenly_stem,
+            "earthly_branch": chart.current_decadal.earthly_branch,
+            "palace_name": chart.current_decadal.palace_name,
+        }
 
     return result

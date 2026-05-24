@@ -8,7 +8,8 @@ Prompt 是 mingmax 的核心资产，必须独立管理。Prompt 不得大量硬
 
 - 只基于给定 `chart_facts` 结构化证据分析，不得从原始宫位列表自行推理；
 - 不得虚构 `chart_facts` 中不存在的星曜、宫位、四化、对宫、三方四正、空宫借星；
-- 禁止引用大限、流年、流月、流日、流时等时间层概念（当前仅支持本命盘分析）；
+- 当前支持本命盘与大限区间级辅助分析，可以引用 chart_facts 中明确提供的 decadal facts；
+- 禁止引用流年、流月、流日、流时等不支持的时间层；
 - 不得自行推算命宫、身宫、四化、对宫、三方四正、空宫借星等确定性关系；
 - 关键判断应附带 `evidence_index` 中的证据 ID 作为可追溯依据；
 - 星曜-宫位和四化-宫位描述必须与 chart_facts 中的实际绑定一致；
@@ -30,6 +31,8 @@ Prompt 是 mingmax 的核心资产，必须独立管理。Prompt 不得大量硬
 | 对宫 | `relation:<idx>:opposite:<opp>` | `relation:0:opposite:6` |
 | 三方四正 | `relation:<idx>:sfsz:<idxes>` | `relation:0:sfsz:0,4,6,8` |
 | 借星 | `borrowed:<idx>:from:<opp>:<name>` | `borrowed:8:from:2:太阴` |
+| 大限 | `decadal:<idx>:<start>-<end>` | `decadal:0:10-19` |
+| 元数据 | `metadata:<field>` | `metadata:lunar_date` |
 
 ## chart_facts 完整事实包
 
@@ -83,7 +86,7 @@ Prompt 是 mingmax 的核心资产，必须独立管理。Prompt 不得大量硬
 - 不得引用不存在的 evidence_index ID；
 - 星曜-宫位绑定一致性（如”XX在YY宫”是否与 chart_facts 一致）；
 - 四化-宫位绑定一致性（如”YY宫XX化Z”是否与 chart_facts 一致）；
-- 禁止引用大限、流年、流月、流日、流时等不支持的时间层；
+- 禁止引用流年、流月、流日、流时等不支持的时间层（大限已支持）；
 - 不得包含绝对化/恐吓式表达（”必然””一定会””注定”等）；
 - 报告必须包含免责声明。
 
