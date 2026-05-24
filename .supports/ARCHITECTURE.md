@@ -66,7 +66,7 @@ tests/
 - Agent 层：组织 LLM 分析流程、Prompt Pipeline、追问与校准，不负责排盘或关系计算。Agent 通过 `build_chart_facts()` 生成结构化证据传给 LLM，不得将原始 `NormalizedChart` JSON 直接交给模型。`analysis_evidence_validator.py` 提供 LLM 输出证据一致性检查，纯函数，不调用外部 LLM。
 - LLM 层：统一模型调用抽象，提供真实 Client 和 Mock Client。
 - Schema 层：定义请求、响应、命盘、分析结果等结构化模型。
-- Web 层：静态前端文件，通过 FastAPI 挂载，只调用后端 API，不直接参与排盘或 LLM 调用。Branch 12 新增命盘核验视图（4x4 十二宫盘面、宫位详情面板、命盘摘要区），只消费 API 返回的 `chart` 字段，不在前端计算排盘关系。
+- Web 层：静态前端文件，通过 FastAPI 挂载，只调用后端 API，不直接参与排盘或 LLM 调用。Branch 12 新增命盘核验视图（4x4 十二宫盘面、宫位详情面板、命盘摘要区），Branch 18 升级为桌面工作台布局（4x4 盘面 + 侧边详情面板并排、结构化分析展示、metadata/decadal 信息展示），只消费 API 返回的 `chart` 字段，不在前端计算排盘关系。
 - Prompt 层：集中管理 Prompt 模板和输出约束。
 
 ## 数据流
@@ -204,24 +204,34 @@ Branch 1-6 允许使用可预测的 Engine stub 和 Mock/真实 LLM Client 建�
 
 ### 定位
 
-Branch 12 在现有原生 HTML/CSS/JS 前端中新增命盘核验视图。该视图的定位是排盘核验工具，让用户和开发者在前端直观看到后端排出的紫微盘，再阅读 LLM 分析结果。
+Branch 12 在现有原生 HTML/CSS/JS 前端中新增命盘核验视图。Branch 18 升级为桌面工作台布局。该视图的定位是排盘核验工具，让用户和开发者在前端直观看到后端排出的紫微盘，再阅读 LLM 分析结果。
 
 ### 页面结构
 
-- **命盘摘要区**（`#chart-summary`）：展示来源、chart_id、命宫、身宫、五行局、农历信息。缺失字段显示"暂未提供"。
-- **4x4 十二宫盘面**（`#chart-grid`）：CSS Grid 4×4 布局，12 个宫位按 earthly branch 固定位置排列，中间 2×2 为品牌/摘要区。每个宫位显示宫名、天干地支、主星、辅星数量、四化 badge、命宫/身宫标记、空宫/借星标记。
-- **宫位详情面板**（`#palace-detail`）：点击或键盘选中宫位后展示完整信息——全部星曜按 category 分组、对宫、三方四正、空宫状态、借星来源、本宫四化。
-- **响应式**：桌面端 4×4 盘面，移动端自动切换为 2 列列表布局。
+- **命盘摘要区**（`#chart-summary`）：展示来源、chart_id、命宫、身宫、五行局（来自 metadata）、农历、四柱背景、当前虚岁、当前大限（范围 + 宫名）。缺失字段显示"暂未提供"。
+- **命盘工作台**（`#chart-workbench`）：4x4 盘面与侧边详情面板并排布局（flexbox row）。
+- **4x4 十二宫盘面**（`#chart-grid`）：CSS Grid 4×4 布局，12 个宫位按 earthly branch 固定位置排列，中间 2×2 为品牌/metadata 摘要区。每个宫位显示宫名、天干地支、主星、辅星数量、四化 badge、命宫/身宫标记、空宫/借星标记、大限范围、当前大限高亮。
+- **中心信息区**（center-cell）：展示五行局、农历、四柱、命宫/身宫名称、当前虚岁、当前大限信息。
+- **宫位详情面板**（`#palace-detail`）：sticky 侧边栏，点击或键盘选中宫位后展示完整信息——全部星曜按 category 分组（含 scope）、对宫、三方四正、空宫状态、借星来源、本宫四化、大限信息。
+- **结构化分析区**：分析概览（`#analysis-overview`）、强信号（`#analysis-strong-signals`）、弱假设（`#analysis-weak-hypotheses`）、交叉校验（`#analysis-cross-checks`）分别展示，不再用 JSON.stringify。
+- **主题分析**（`#theme-analyses`）：结构化展示观察、证据标签、不确定性。
+- **追问问题**（`#followup-questions`）：展示问题、原因、关联证据标签。
+- **桌面端布局**（max-width 1440px），不做移动端适配。
+
+### 前端安全原则
+
+- 所有动态内容使用 textContent/DOM 节点渲染，不使用 innerHTML（防 XSS）。
+- 前端不写入 localStorage/sessionStorage/cookie。
 
 ### 前端不计算的原则
 
 - 宫位 index 到网格位置的映射是固定常量（基于 iztro 宫位顺序），不是排盘计算。
-- 所有对宫、三方四正、空宫、借星数据来自 API 返回的 chart 字段。
-- 前端不写入 localStorage/sessionStorage/cookie。
+- 所有对宫、三方四正、空宫、借星、decadal 数据来自 API 返回的 chart 字段。
+- 当前大限宫位高亮基于 `chart.current_decadal.palace_index`，不是前端计算。
 
 ### 未支持范围
 
 - 农历输入
 - `Gender.unknown`
 - 真太阳时精确校正（无 longitude 时使用时区推算近似经度，偏差可能较大）
-- 大限、流年、流月、流日、流时
+- 流年、流月、流日、流时

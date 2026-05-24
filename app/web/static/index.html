@@ -21,51 +21,69 @@
       <fieldset>
         <legend>出生信息</legend>
 
-        <label for="calendar_type">历法类型</label>
-        <select id="calendar_type" name="calendar_type">
-          <option value="solar" selected>公历 (solar)</option>
-          <option value="lunar">农历 (lunar) — 当前阶段不支持</option>
-        </select>
+        <div class="field-control">
+          <label for="calendar_type">历法类型</label>
+          <select id="calendar_type" name="calendar_type">
+            <option value="solar" selected>公历 (solar)</option>
+            <option value="lunar">农历 (lunar) — 当前阶段不支持</option>
+          </select>
+        </div>
 
-        <label for="birth_datetime">出生日期时间</label>
-        <input type="datetime-local" id="birth_datetime" name="birth_datetime" required>
+        <div class="field-control">
+          <label for="birth_datetime">出生日期时间</label>
+          <input type="datetime-local" id="birth_datetime" name="birth_datetime" required>
+        </div>
 
-        <label for="gender">性别</label>
-        <select id="gender" name="gender" required>
-          <option value="male">男</option>
-          <option value="female">女</option>
-          <option value="unknown" disabled>未知（真实排盘暂不支持）</option>
-        </select>
+        <div class="field-control field-control-compact">
+          <label for="gender">性别</label>
+          <select id="gender" name="gender" required>
+            <option value="male">男</option>
+            <option value="female">女</option>
+            <option value="unknown" disabled>未知（真实排盘暂不支持）</option>
+          </select>
+        </div>
 
-        <label for="birth_place">出生地点</label>
-        <input type="text" id="birth_place" name="birth_place" placeholder="Shanghai, China" required>
+        <div class="field-control">
+          <label for="birth_place">出生地点</label>
+          <input type="text" id="birth_place" name="birth_place" placeholder="Shanghai, China" required>
+        </div>
 
-        <label for="longitude">经度（根据出生地点自动填充，可手动修改）</label>
-        <input type="number" id="longitude" name="longitude" step="0.001" min="-180" max="180" placeholder="自动填充">
+        <div class="field-control field-control-compact">
+          <label for="longitude">经度</label>
+          <input type="number" id="longitude" name="longitude" step="0.001" min="-180" max="180" placeholder="自动填充">
+        </div>
 
-        <label for="timezone">时区</label>
-        <input type="text" id="timezone" name="timezone" value="Asia/Shanghai" required>
+        <div class="field-control field-control-compact">
+          <label for="timezone">时区</label>
+          <input type="text" id="timezone" name="timezone" value="Asia/Shanghai" required>
+        </div>
       </fieldset>
 
       <fieldset>
         <legend>分析选项</legend>
 
-        <label>分析主题（可多选）</label>
-        <div class="checkbox-group">
-          <label><input type="checkbox" name="themes" value="career"> 事业</label>
-          <label><input type="checkbox" name="themes" value="relationship"> 感情</label>
-          <label><input type="checkbox" name="themes" value="self_understanding"> 自我认知</label>
+        <div class="field-control field-control-wide">
+          <label>分析主题（可多选）</label>
+          <div class="checkbox-group">
+            <label><input type="checkbox" name="themes" value="career"> 事业</label>
+            <label><input type="checkbox" name="themes" value="relationship"> 感情</label>
+            <label><input type="checkbox" name="themes" value="self_understanding"> 自我认知</label>
+          </div>
         </div>
 
-        <label class="checkbox-label">
-          <input type="checkbox" id="include_followup_questions" name="include_followup_questions" checked>
-          生成追问问题
-        </label>
+        <div class="field-control">
+          <label class="checkbox-label">
+            <input type="checkbox" id="include_followup_questions" name="include_followup_questions" checked>
+            生成追问问题
+          </label>
+        </div>
 
-        <label class="checkbox-label">
-          <input type="checkbox" id="include_markdown_report" name="include_markdown_report" checked>
-          生成 Markdown 报告
-        </label>
+        <div class="field-control">
+          <label class="checkbox-label">
+            <input type="checkbox" id="include_markdown_report" name="include_markdown_report" checked>
+            生成 Markdown 报告
+          </label>
+        </div>
       </fieldset>
 
       <button type="submit" id="submit-btn">开始分析</button>
@@ -81,25 +99,25 @@
     </section>
 
     <section id="result-section" class="hidden">
-      <h2>分析结果</h2>
+      <div id="chart-summary"></div>
 
-      <section id="chart-verification">
-        <h3>命盘核验</h3>
-        <div id="chart-summary"></div>
+      <div id="chart-workbench">
         <div id="chart-grid"></div>
         <div id="palace-detail" class="hidden">
           <h4>宫位详情</h4>
           <div id="palace-detail-content"></div>
         </div>
-      </section>
+      </div>
 
       <details id="chart-details">
         <summary>原始命盘数据（调试用）</summary>
         <div id="chart-info"></div>
       </details>
 
-      <h3>分析摘要</h3>
-      <pre id="analysis-summary"></pre>
+      <div id="analysis-overview"></div>
+      <div id="analysis-strong-signals" class="hidden"></div>
+      <div id="analysis-weak-hypotheses" class="hidden"></div>
+      <div id="analysis-cross-checks" class="hidden"></div>
 
       <div id="theme-analyses-section" class="hidden">
         <h3>主题分析</h3>
@@ -111,10 +129,10 @@
         <ul id="followup-questions"></ul>
       </div>
 
-      <div id="report-section" class="hidden">
-        <h3>Markdown 报告</h3>
+      <details id="report-section" class="hidden">
+        <summary>Markdown 报告</summary>
         <pre id="report-markdown"></pre>
-      </div>
+      </details>
     </section>
   </main>
 
