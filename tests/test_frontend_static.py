@@ -88,7 +88,11 @@ const elements = {
   "source-notice": makeElement(),
   "source-text": makeElement(),
   "chart-info": makeElement(),
-  "analysis-summary": makeElement(),
+  "analysis-overview": makeElement(),
+  "analysis-strong-signals": makeElement(),
+  "analysis-weak-hypotheses": makeElement(),
+  "analysis-cross-checks": makeElement(),
+  "chart-workbench": makeElement(),
   "theme-analyses-section": makeElement(),
   "theme-analyses": makeElement(),
   "followup-section": makeElement(),
@@ -327,7 +331,7 @@ async def test_index_html_has_chart_verification_section(client: AsyncClient) ->
     response = await client.get("/static/index.html")
     assert response.status_code == 200
     body = response.text
-    assert "chart-verification" in body
+    assert "chart-workbench" in body
     assert "chart-summary" in body
     assert "chart-grid" in body
     assert "palace-detail" in body
@@ -337,8 +341,8 @@ async def test_index_html_has_chart_verification_section(client: AsyncClient) ->
 async def test_index_html_chart_grid_before_analysis_summary(client: AsyncClient) -> None:
     response = await client.get("/static/index.html")
     body = response.text
-    verify_pos = body.index("chart-verification")
-    summary_pos = body.index('id="analysis-summary"')
+    verify_pos = body.index("chart-workbench")
+    summary_pos = body.index('id="analysis-overview"')
     assert verify_pos < summary_pos
 
 
@@ -434,6 +438,346 @@ def _setup_fetch_with_chart() -> str:
     import json
 
     data = _chart_response()
+    return (
+        "context.fetch = function () {"
+        "  return Promise.resolve({"
+        "    ok: true,"
+        "    status: 200,"
+        "    json: function () { return Promise.resolve(" + json.dumps(data) + "); }"
+        "  });"
+        "};"
+    )
+
+
+def _rich_chart_response() -> dict:
+    """Chart response with full Branch 16/17 fields: 12 palaces, metadata, decadal, scope."""
+    palaces = [
+        {
+            "index": 0,
+            "name": "父母宫",
+            "heavenly_stem": "甲",
+            "earthly_branch": "寅",
+            "stars": [{"name": "天梁", "brightness": "庙", "category": "major", "scope": "natal"}],
+            "four_hua": None,
+            "is_body_palace": False,
+            "opposite_palace_index": 6,
+            "san_fang_si_zheng_indexes": [0, 4, 6, 8],
+            "is_empty": False,
+            "borrowed_from_index": None,
+            "borrowed_major_stars": None,
+            "decadal": {
+                "start_age": 10,
+                "end_age": 19,
+                "heavenly_stem": "甲",
+                "earthly_branch": "寅",
+                "palace_index": 0,
+                "palace_name": "父母宫",
+            },
+        },
+        {
+            "index": 1,
+            "name": "福德宫",
+            "heavenly_stem": "乙",
+            "earthly_branch": "卯",
+            "stars": [{"name": "太阴", "brightness": "旺", "category": "major", "scope": "natal"}],
+            "four_hua": None,
+            "is_body_palace": False,
+            "opposite_palace_index": 7,
+            "san_fang_si_zheng_indexes": [1, 5, 7, 9],
+            "is_empty": False,
+            "borrowed_from_index": None,
+            "borrowed_major_stars": None,
+            "decadal": {
+                "start_age": 20,
+                "end_age": 29,
+                "heavenly_stem": "乙",
+                "earthly_branch": "卯",
+                "palace_index": 1,
+                "palace_name": "福德宫",
+            },
+        },
+        {
+            "index": 2,
+            "name": "田宅宫",
+            "heavenly_stem": "丙",
+            "earthly_branch": "辰",
+            "stars": [],
+            "four_hua": None,
+            "is_body_palace": False,
+            "opposite_palace_index": 8,
+            "san_fang_si_zheng_indexes": [2, 6, 8, 10],
+            "is_empty": True,
+            "borrowed_from_index": 8,
+            "borrowed_major_stars": ["七杀"],
+            "decadal": {
+                "start_age": 30,
+                "end_age": 39,
+                "heavenly_stem": "丙",
+                "earthly_branch": "辰",
+                "palace_index": 2,
+                "palace_name": "田宅宫",
+            },
+        },
+        {
+            "index": 3,
+            "name": "官禄宫",
+            "heavenly_stem": "丁",
+            "earthly_branch": "巳",
+            "stars": [],
+            "four_hua": None,
+            "is_body_palace": False,
+            "opposite_palace_index": 9,
+            "san_fang_si_zheng_indexes": [3, 7, 9, 11],
+            "is_empty": True,
+            "borrowed_from_index": 9,
+            "borrowed_major_stars": ["太阳"],
+            "decadal": {
+                "start_age": 40,
+                "end_age": 49,
+                "heavenly_stem": "丁",
+                "earthly_branch": "巳",
+                "palace_index": 3,
+                "palace_name": "官禄宫",
+            },
+        },
+        {
+            "index": 4,
+            "name": "交友宫",
+            "heavenly_stem": "戊",
+            "earthly_branch": "午",
+            "stars": [{"name": "天同", "brightness": "平", "category": "major", "scope": "natal"}],
+            "four_hua": None,
+            "is_body_palace": False,
+            "opposite_palace_index": 10,
+            "san_fang_si_zheng_indexes": [0, 4, 6, 8],
+            "is_empty": False,
+            "borrowed_from_index": None,
+            "borrowed_major_stars": None,
+            "decadal": {
+                "start_age": 50,
+                "end_age": 59,
+                "heavenly_stem": "戊",
+                "earthly_branch": "午",
+                "palace_index": 4,
+                "palace_name": "交友宫",
+            },
+        },
+        {
+            "index": 5,
+            "name": "迁移宫",
+            "heavenly_stem": "己",
+            "earthly_branch": "未",
+            "stars": [{"name": "太阳", "brightness": "得", "category": "major", "scope": "natal"}],
+            "four_hua": None,
+            "is_body_palace": False,
+            "opposite_palace_index": 11,
+            "san_fang_si_zheng_indexes": [1, 5, 7, 9],
+            "is_empty": False,
+            "borrowed_from_index": None,
+            "borrowed_major_stars": None,
+            "decadal": {
+                "start_age": 60,
+                "end_age": 69,
+                "heavenly_stem": "己",
+                "earthly_branch": "未",
+                "palace_index": 5,
+                "palace_name": "迁移宫",
+            },
+        },
+        {
+            "index": 6,
+            "name": "疾厄宫",
+            "heavenly_stem": "庚",
+            "earthly_branch": "申",
+            "stars": [{"name": "武曲", "brightness": "利", "category": "major", "scope": "natal"}],
+            "four_hua": None,
+            "is_body_palace": False,
+            "opposite_palace_index": 0,
+            "san_fang_si_zheng_indexes": [2, 6, 8, 10],
+            "is_empty": False,
+            "borrowed_from_index": None,
+            "borrowed_major_stars": None,
+            "decadal": {
+                "start_age": 70,
+                "end_age": 79,
+                "heavenly_stem": "庚",
+                "earthly_branch": "申",
+                "palace_index": 6,
+                "palace_name": "疾厄宫",
+            },
+        },
+        {
+            "index": 7,
+            "name": "财帛宫",
+            "heavenly_stem": "辛",
+            "earthly_branch": "酉",
+            "stars": [
+                {"name": "紫微", "brightness": "旺", "category": "major", "scope": "natal"},
+                {"name": "天府", "brightness": "庙", "category": "major", "scope": "natal"},
+                {"name": "左辅", "brightness": None, "category": "minor", "scope": "natal"},
+            ],
+            "four_hua": {"hua_lu": "紫微", "hua_quan": None, "hua_ke": None, "hua_ji": None},
+            "is_body_palace": True,
+            "opposite_palace_index": 1,
+            "san_fang_si_zheng_indexes": [3, 7, 9, 11],
+            "is_empty": False,
+            "borrowed_from_index": None,
+            "borrowed_major_stars": None,
+            "decadal": {
+                "start_age": 80,
+                "end_age": 89,
+                "heavenly_stem": "辛",
+                "earthly_branch": "酉",
+                "palace_index": 7,
+                "palace_name": "财帛宫",
+            },
+        },
+        {
+            "index": 8,
+            "name": "子女宫",
+            "heavenly_stem": "壬",
+            "earthly_branch": "戌",
+            "stars": [{"name": "七杀", "brightness": "陷", "category": "major", "scope": "natal"}],
+            "four_hua": None,
+            "is_body_palace": False,
+            "opposite_palace_index": 2,
+            "san_fang_si_zheng_indexes": [2, 6, 8, 10],
+            "is_empty": False,
+            "borrowed_from_index": None,
+            "borrowed_major_stars": None,
+            "decadal": {
+                "start_age": 90,
+                "end_age": 99,
+                "heavenly_stem": "壬",
+                "earthly_branch": "戌",
+                "palace_index": 8,
+                "palace_name": "子女宫",
+            },
+        },
+        {
+            "index": 9,
+            "name": "夫妻宫",
+            "heavenly_stem": "癸",
+            "earthly_branch": "亥",
+            "stars": [{"name": "太阳", "brightness": "庙", "category": "major", "scope": "natal"}],
+            "four_hua": None,
+            "is_body_palace": False,
+            "opposite_palace_index": 3,
+            "san_fang_si_zheng_indexes": [3, 7, 9, 11],
+            "is_empty": False,
+            "borrowed_from_index": None,
+            "borrowed_major_stars": None,
+            "decadal": {
+                "start_age": 100,
+                "end_age": 109,
+                "heavenly_stem": "癸",
+                "earthly_branch": "亥",
+                "palace_index": 9,
+                "palace_name": "夫妻宫",
+            },
+        },
+        {
+            "index": 10,
+            "name": "兄弟宫",
+            "heavenly_stem": "甲",
+            "earthly_branch": "子",
+            "stars": [{"name": "廉贞", "brightness": "平", "category": "major", "scope": "natal"}],
+            "four_hua": None,
+            "is_body_palace": False,
+            "opposite_palace_index": 4,
+            "san_fang_si_zheng_indexes": [2, 6, 8, 10],
+            "is_empty": False,
+            "borrowed_from_index": None,
+            "borrowed_major_stars": None,
+            "decadal": {
+                "start_age": 24,
+                "end_age": 33,
+                "heavenly_stem": "甲",
+                "earthly_branch": "子",
+                "palace_index": 10,
+                "palace_name": "兄弟宫",
+            },
+        },
+        {
+            "index": 11,
+            "name": "命宫",
+            "heavenly_stem": "乙",
+            "earthly_branch": "丑",
+            "stars": [
+                {"name": "天机", "brightness": "利", "category": "major", "scope": "natal"},
+                {"name": "文昌", "brightness": None, "category": "minor", "scope": "natal"},
+            ],
+            "four_hua": {"hua_lu": None, "hua_quan": None, "hua_ke": None, "hua_ji": "天机"},
+            "is_body_palace": False,
+            "opposite_palace_index": 5,
+            "san_fang_si_zheng_indexes": [3, 7, 9, 11],
+            "is_empty": False,
+            "borrowed_from_index": None,
+            "borrowed_major_stars": None,
+            "decadal": {
+                "start_age": 110,
+                "end_age": 119,
+                "heavenly_stem": "乙",
+                "earthly_branch": "丑",
+                "palace_index": 11,
+                "palace_name": "命宫",
+            },
+        },
+    ]
+    return {
+        "chart": {
+            "source": "iztro_py",
+            "chart_id": "test-rich-001",
+            "ming_palace_index": 11,
+            "body_palace_index": 7,
+            "five_elements_class": "火六局",
+            "lunar_info": None,
+            "metadata": {
+                "lunar_date": "农历四月初八",
+                "chinese_date": "乙亥年辛巳月甲寅日",
+                "five_elements_class": "火六局",
+            },
+            "current_age": 30,
+            "current_decadal": {
+                "start_age": 24,
+                "end_age": 33,
+                "heavenly_stem": "甲",
+                "earthly_branch": "子",
+                "palace_index": 10,
+                "palace_name": "兄弟宫",
+            },
+            "palaces": palaces,
+            "four_hua": {"hua_lu": "紫微", "hua_quan": "太阴", "hua_ke": "右弼", "hua_ji": "天机"},
+        },
+        "analysis": {
+            "summary": "命宫天机化忌为较强信号",
+            "strong_signals": ["天机化忌在命宫"],
+            "weak_hypotheses": ["福德宫太阴旺可能暗示内在细腻"],
+            "cross_checks": ["命宫与福德宫对宫关系"],
+            "theme_analyses": [
+                {
+                    "theme": "事业",
+                    "observations": ["官禄宫空宫借星太阳"],
+                    "supporting_evidence": ["palace:3", "star:5:太阳"],
+                    "uncertainty": "空宫借星解读需谨慎",
+                },
+            ],
+        },
+        "followup_questions": [
+            {
+                "question": "事业方向是否偏向稳定型？",
+                "reason": "官禄宫空宫借星",
+                "related_chart_factors": ["palace:3", "decadal:0:10-19"],
+            },
+        ],
+        "report_markdown": None,
+    }
+
+
+def _setup_fetch_with_rich_chart() -> str:
+    import json
+
+    data = _rich_chart_response()
     return (
         "context.fetch = function () {"
         "  return Promise.resolve({"
@@ -718,3 +1062,258 @@ def test_frontend_xss_safe_star_name_rendering() -> None:
     }, 0);
     """
     )
+
+
+# --- Branch 18: Desktop workbench tests ---
+
+
+def test_index_html_has_desktop_workbench_sections() -> None:
+    html = Path("app/web/static/index.html").read_text(encoding="utf-8")
+    assert 'id="chart-workbench"' in html
+    assert 'id="analysis-overview"' in html
+    assert 'id="analysis-strong-signals"' in html
+    assert 'id="analysis-weak-hypotheses"' in html
+    assert 'id="analysis-cross-checks"' in html
+    # chart-grid must appear before analysis sections
+    assert html.index('id="chart-grid"') < html.index('id="analysis-overview"')
+
+
+def test_frontend_renders_metadata_in_summary_and_center() -> None:
+    _run_app_js(_setup_fetch_with_rich_chart() + """
+    function collectText(el) {
+      var parts = [];
+      if (el._tc) parts.push(el._tc);
+      for (var i = 0; i < el._children.length; i++) {
+        parts.push(collectText(el._children[i]));
+      }
+      return parts.join(" ");
+    }
+    elements["analyze-form"].handler({ preventDefault: function () {} });
+    setTimeout(function () {
+      var summary = collectText(elements["chart-summary"]);
+      if (summary.indexOf("火六局") < 0) throw new Error("missing five_elements_class in summary");
+      if (summary.indexOf("农历四月初八") < 0) throw new Error("missing lunar_date in summary");
+      if (summary.indexOf("乙亥年辛巳月甲寅日") < 0) throw new Error("missing chinese_date in summary");
+
+      var grid = elements["chart-grid"];
+      var center = null;
+      for (var i = 0; i < grid._children.length; i++) {
+        if (grid._children[i].className && grid._children[i].className.indexOf("center-cell") >= 0) {
+          center = grid._children[i];
+        }
+      }
+      if (!center) throw new Error("no center cell");
+      var centerText = collectText(center);
+      if (centerText.indexOf("火六局") < 0) throw new Error("missing five_elements_class in center");
+      if (centerText.indexOf("农历") < 0) throw new Error("missing lunar in center");
+      if (centerText.indexOf("四柱") < 0) throw new Error("missing 四柱 in center");
+      if (centerText.indexOf("30") < 0) throw new Error("missing current_age in center");
+    }, 0);
+    """)
+
+
+def test_frontend_renders_current_decadal_in_summary_and_center() -> None:
+    _run_app_js(_setup_fetch_with_rich_chart() + """
+    function collectText(el) {
+      var parts = [];
+      if (el._tc) parts.push(el._tc);
+      for (var i = 0; i < el._children.length; i++) {
+        parts.push(collectText(el._children[i]));
+      }
+      return parts.join(" ");
+    }
+    elements["analyze-form"].handler({ preventDefault: function () {} });
+    setTimeout(function () {
+      var summary = collectText(elements["chart-summary"]);
+      if (summary.indexOf("24-33") < 0) throw new Error("missing decadal range in summary");
+      if (summary.indexOf("兄弟宫") < 0) throw new Error("missing decadal palace_name in summary");
+
+      var grid = elements["chart-grid"];
+      var center = null;
+      for (var i = 0; i < grid._children.length; i++) {
+        if (grid._children[i].className && grid._children[i].className.indexOf("center-cell") >= 0) {
+          center = grid._children[i];
+        }
+      }
+      if (!center) throw new Error("no center cell");
+      var centerText = collectText(center);
+      if (centerText.indexOf("24-33") < 0) throw new Error("missing decadal range in center");
+      if (centerText.indexOf("兄弟宫") < 0) throw new Error("missing decadal palace_name in center");
+    }, 0);
+    """)
+
+
+def test_frontend_center_shows_unavailable_for_missing_identity_fields() -> None:
+    import json
+
+    data = _rich_chart_response()
+    data["chart"]["metadata"] = {}
+    data["chart"]["five_elements_class"] = None
+    data["chart"]["current_age"] = None
+    data["chart"]["current_decadal"] = None
+    data["chart"]["ming_palace_index"] = None
+    data["chart"]["body_palace_index"] = None
+
+    _run_app_js(
+        "context.fetch = function () {"
+        "  return Promise.resolve({"
+        "    ok: true,"
+        "    status: 200,"
+        "    json: function () { return Promise.resolve(" + json.dumps(data) + "); }"
+        "  });"
+        "};" + """
+    function collectText(el) {
+      var parts = [];
+      if (el._tc) parts.push(el._tc);
+      for (var i = 0; i < el._children.length; i++) {
+        parts.push(collectText(el._children[i]));
+      }
+      return parts.join(" ");
+    }
+    elements["analyze-form"].handler({ preventDefault: function () {} });
+    setTimeout(function () {
+      var grid = elements["chart-grid"];
+      var center = null;
+      for (var i = 0; i < grid._children.length; i++) {
+        if (grid._children[i].className && grid._children[i].className.indexOf("center-cell") >= 0) {
+          center = grid._children[i];
+        }
+      }
+      if (!center) throw new Error("no center cell");
+      var centerText = collectText(center);
+      var labels = ["五行局", "农历", "四柱背景", "命宫", "身宫", "虚岁", "大限"];
+      for (var j = 0; j < labels.length; j++) {
+        if (centerText.indexOf(labels[j]) < 0) {
+          throw new Error("missing center label: " + labels[j] + ", got: " + centerText);
+        }
+      }
+      var unavailableCount = (centerText.match(/暂未提供/g) || []).length;
+      if (unavailableCount < 7) {
+        throw new Error("expected missing fields to show 暂未提供, got: " + centerText);
+      }
+    }, 0);
+    """
+    )
+
+
+def test_frontend_highlights_current_decadal_palace() -> None:
+    _run_app_js(_setup_fetch_with_rich_chart() + """
+    elements["analyze-form"].handler({ preventDefault: function () {} });
+    setTimeout(function () {
+      var grid = elements["chart-grid"];
+      var cells = grid.querySelectorAll(".palace-cell");
+      var found = false;
+      for (var i = 0; i < cells.length; i++) {
+        if (cells[i].getAttribute("data-index") === "10") {
+          if (!cells[i].classList.contains("is-current-decadal")) {
+            throw new Error("palace 10 should have is-current-decadal class");
+          }
+          found = true;
+        }
+      }
+      if (!found) throw new Error("palace cell 10 not found");
+    }, 0);
+    """)
+
+
+def test_frontend_renders_palace_decadal_range() -> None:
+    _run_app_js(_setup_fetch_with_rich_chart() + """
+    function collectText(el) {
+      var parts = [];
+      if (el._tc) parts.push(el._tc);
+      for (var i = 0; i < el._children.length; i++) {
+        parts.push(collectText(el._children[i]));
+      }
+      return parts.join(" ");
+    }
+    elements["analyze-form"].handler({ preventDefault: function () {} });
+    setTimeout(function () {
+      var grid = elements["chart-grid"];
+      var cells = grid.querySelectorAll(".palace-cell");
+      var found = false;
+      for (var i = 0; i < cells.length; i++) {
+        if (cells[i].getAttribute("data-index") === "0") {
+          var text = collectText(cells[i]);
+          if (text.indexOf("10-19") < 0) throw new Error("missing decadal range in palace 0, got: " + text);
+          found = true;
+        }
+      }
+      if (!found) throw new Error("palace cell 0 not found");
+    }, 0);
+    """)
+
+
+def test_frontend_detail_panel_shows_star_scope() -> None:
+    _run_app_js(_setup_fetch_with_rich_chart() + """
+    function collectText(el) {
+      var parts = [];
+      if (el._tc) parts.push(el._tc);
+      for (var i = 0; i < el._children.length; i++) {
+        parts.push(collectText(el._children[i]));
+      }
+      return parts.join(" ");
+    }
+    elements["analyze-form"].handler({ preventDefault: function () {} });
+    setTimeout(function () {
+      var grid = elements["chart-grid"];
+      var cells = grid.querySelectorAll(".palace-cell");
+      var targetCell = null;
+      for (var i = 0; i < cells.length; i++) {
+        if (cells[i].getAttribute("data-index") === "0") targetCell = cells[i];
+      }
+      if (!targetCell) throw new Error("cell index 0 not found");
+      targetCell._handlers.click({ currentTarget: targetCell });
+      var detailText = collectText(elements["palace-detail-content"]);
+      if (detailText.indexOf("natal") < 0) throw new Error("expected scope 'natal' in detail, got: " + detailText);
+    }, 0);
+    """)
+
+
+def test_frontend_renders_structured_analysis_sections() -> None:
+    _run_app_js(_setup_fetch_with_rich_chart() + """
+    function collectText(el) {
+      var parts = [];
+      if (el._tc) parts.push(el._tc);
+      for (var i = 0; i < el._children.length; i++) {
+        parts.push(collectText(el._children[i]));
+      }
+      return parts.join(" ");
+    }
+    elements["analyze-form"].handler({ preventDefault: function () {} });
+    setTimeout(function () {
+      var overview = collectText(elements["analysis-overview"]);
+      if (overview.indexOf("天机化忌") < 0) throw new Error("missing analysis summary in overview");
+
+      var strong = collectText(elements["analysis-strong-signals"]);
+      if (strong.indexOf("天机化忌在命宫") < 0) throw new Error("missing strong signal, got: " + strong);
+
+      var weak = collectText(elements["analysis-weak-hypotheses"]);
+      if (weak.indexOf("太阴旺") < 0) throw new Error("missing weak hypothesis, got: " + weak);
+
+      var cross = collectText(elements["analysis-cross-checks"]);
+      if (cross.indexOf("对宫关系") < 0) throw new Error("missing cross check, got: " + cross);
+    }, 0);
+    """)
+
+
+def test_frontend_renders_evidence_tags_as_text() -> None:
+    _run_app_js(_setup_fetch_with_rich_chart() + """
+    function collectText(el) {
+      var parts = [];
+      if (el._tc) parts.push(el._tc);
+      for (var i = 0; i < el._children.length; i++) {
+        parts.push(collectText(el._children[i]));
+      }
+      return parts.join(" ");
+    }
+    elements["analyze-form"].handler({ preventDefault: function () {} });
+    setTimeout(function () {
+      var themes = collectText(elements["theme-analyses"]);
+      if (themes.indexOf("palace:3") < 0) throw new Error("missing evidence tag palace:3 in themes");
+      if (themes.indexOf("star:5:太阳") < 0) throw new Error("missing evidence tag star:5 in themes");
+
+      var followup = collectText(elements["followup-questions"]);
+      if (followup.indexOf("palace:3") < 0) throw new Error("missing evidence tag in followup");
+      if (followup.indexOf("decadal:0:10-19") < 0) throw new Error("missing decadal evidence tag in followup");
+    }, 0);
+    """)

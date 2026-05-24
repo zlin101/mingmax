@@ -192,31 +192,44 @@ MINGMAX_LLM_TIMEOUT_SECONDS=30
 
 ## 前端核验视图使用的 chart 字段
 
-Branch 12 前端命盘核验视图消费以下 `chart` 字段：
+Branch 18 桌面工作台前端消费以下 `chart` 字段：
 
 - `chart.source`：排盘来源，展示在来源标识和摘要区。
 - `chart.chart_id`：命盘唯一标识，展示在摘要区。
 - `chart.ming_palace_index` / `chart.body_palace_index`：命宫/身宫 index，前端据此查找对应宫位名称。
 - `chart.five_elements_class`：五行局（Branch 16/17+ 来自 `chart.metadata.five_elements_class`）。
-- `chart.metadata`：元数据信息，包含 `lunar_date`（农历日期）、`chinese_date`（四柱字符串）、`five_elements_class`、`soul_palace_earthly_branch`、`body_palace_earthly_branch`、`body`（身宫类型）。
-- `chart.current_age`：当前虚岁（Branch 16/17+）。
-- `chart.current_decadal`：当前大限信息（Branch 16/17+），包含 `start_age`、`end_age`、`heavenly_stem`、`earthly_branch`、`palace_name`。
+- `chart.metadata`：元数据信息，展示在摘要区和中心信息区。包含 `lunar_date`（农历日期）、`chinese_date`（四柱字符串）、`five_elements_class`、`soul_palace_earthly_branch`、`body_palace_earthly_branch`、`body`（身宫类型）。
+- `chart.current_age`：当前虚岁（Branch 16/17+），展示在摘要区和中心信息区。
+- `chart.current_decadal`：当前大限信息（Branch 16/17+），展示在摘要区和中心信息区。包含 `start_age`、`end_age`、`heavenly_stem`、`earthly_branch`、`palace_name`、`palace_index`。
 - `chart.palaces[].index`：宫位 index（0-11），前端按固定映射将 index 映射到 4x4 网格位置。
 - `chart.palaces[].name`：宫位名称。
 - `chart.palaces[].heavenly_stem` / `earthly_branch`：天干地支。
-- `chart.palaces[].stars[].name` / `brightness` / `category` / `scope`：星曜信息（Branch 16/17+ 增加 `scope` 字段）。
-- `chart.palaces[].four_hua`：宫位级四化（`hua_lu`/`hua_quan`/`hua_ke``/`hua_ji`），可能为 `null`。
+- `chart.palaces[].stars[].name` / `brightness` / `category` / `scope`：星曜信息（Branch 16/17+ 增加 `scope` 字段，展示在详情面板）。
+- `chart.palaces[].four_hua`：宫位级四化（`hua_lu`/`hua_quan`/`hua_ke`/`hua_ji`），可能为 `null`。
 - `chart.palaces[].is_body_palace`：身宫标记。
 - `chart.palaces[].opposite_palace_index`：对宫 index。
 - `chart.palaces[].san_fang_si_zheng_indexes`：三方四正 indexes。
 - `chart.palaces[].is_empty`：空宫标记。
 - `chart.palaces[].borrowed_from_index` / `borrowed_major_stars`：借星来源。
-- `chart.palaces[].decadal`：该宫位的大限信息（Branch 16/17+），包含 `start_age`、`end_age`、`heavenly_stem`、`earthly_branch`、`palace_name`。
+- `chart.palaces[].decadal`：该宫位的大限信息（Branch 16/17+），展示在宫位 cell 和详情面板。包含 `start_age`、`end_age`、`heavenly_stem`、`earthly_branch`、`palace_name`。
+
+分析字段消费（Branch 18+）：
+
+- `analysis.summary`：分析概览文本，展示在 `#analysis-overview`。
+- `analysis.strong_signals[]`：强信号列表，展示在 `#analysis-strong-signals`。
+- `analysis.weak_hypotheses[]`：弱假设列表，展示在 `#analysis-weak-hypotheses`。
+- `analysis.cross_checks[]`：交叉校验列表，展示在 `#analysis-cross-checks`。
+- `analysis.theme_analyses[].observations[]`：主题观察列表。
+- `analysis.theme_analyses[].supporting_evidence[]`：证据标签列表。
+- `analysis.theme_analyses[].uncertainty`：不确定性说明。
+- `followup_questions[].related_chart_factors[]`：关联证据标签。
 
 约束：
 
-- 前端只展示 API 返回的 chart 字段，不计算排盘关系（对宫、三方四正、空宫借星等均由后端提供）。
+- 前端只展示 API 返回的字段，不计算排盘关系（对宫、三方四正、空宫借星等均由后端提供）。
 - 前端按 `index` 到固定 earthly branch 网格位置的映射渲染 4x4 盘面，不依赖 earthly_branch 字符串定位。
+- 当前大限宫位通过 `chart.current_decadal.palace_index` 高亮，不是前端计算。
+- 所有动态内容使用 textContent/DOM 节点渲染，不使用 innerHTML。
 
 ## 静态前端路由
 

@@ -136,7 +136,10 @@
   birthPlaceInput.addEventListener("blur", autofillLongitude);
 
   var chartInfo = document.getElementById("chart-info");
-  var analysisSummary = document.getElementById("analysis-summary");
+  var analysisOverview = document.getElementById("analysis-overview");
+  var analysisStrongSignals = document.getElementById("analysis-strong-signals");
+  var analysisWeakHypotheses = document.getElementById("analysis-weak-hypotheses");
+  var analysisCrossChecks = document.getElementById("analysis-cross-checks");
   var themeAnalysesSection = document.getElementById("theme-analyses-section");
   var themeAnalyses = document.getElementById("theme-analyses");
   var followupSection = document.getElementById("followup-section");
@@ -296,12 +299,23 @@
 
     _addSummaryItem(chartSummary, "命宫：", mingPalace ? mingPalace.name + "（" + (mingPalace.earthly_branch || "") + "）" : "N/A");
     _addSummaryItem(chartSummary, "身宫：", bodyPalace ? bodyPalace.name + "（" + (bodyPalace.earthly_branch || "") + "）" : "N/A");
-    _addSummaryItem(chartSummary, "五行局：", chart.five_elements_class || "暂未提供");
-    _addSummaryItem(chartSummary, "农历：", chart.lunar_info ? JSON.stringify(chart.lunar_info) : "暂未提供");
+
+    var meta = chart.metadata || {};
+    _addSummaryItem(chartSummary, "五行局：", chart.five_elements_class || meta.five_elements_class || "暂未提供");
+    _addSummaryItem(chartSummary, "农历：", meta.lunar_date || "暂未提供");
+    _addSummaryItem(chartSummary, "四柱背景：", meta.chinese_date || "暂未提供");
+
+    if (chart.current_age != null) {
+      _addSummaryItem(chartSummary, "当前虚岁：", String(chart.current_age));
+    }
+    if (chart.current_decadal) {
+      var cd = chart.current_decadal;
+      _addSummaryItem(chartSummary, "当前大限：", cd.start_age + "-" + cd.end_age + " " + (cd.palace_name || ""));
+    }
   }
 
   function renderChartGrid(chart) {
-    chartGrid.innerHTML = "";
+    chartGrid.textContent = "";
     currentChart = chart;
     hide(palaceDetail);
 
@@ -311,11 +325,16 @@
       palaceByIndex[palaces[i].index] = palaces[i];
     }
 
+    var decadalPalaceIdx = chart.current_decadal ? chart.current_decadal.palace_index : null;
+
     for (var idx = 0; idx < 12; idx++) {
       var pos = INDEX_TO_GRID[idx];
       var palace = palaceByIndex[idx];
       var cell = document.createElement("div");
       cell.className = "palace-cell";
+      if (idx === decadalPalaceIdx) {
+        cell.classList.add("is-current-decadal");
+      }
       cell.setAttribute("tabindex", "0");
       cell.setAttribute("data-index", String(idx));
       cell.style.gridRow = String(pos.row);
@@ -338,7 +357,39 @@
 
     var center = document.createElement("div");
     center.className = "center-cell";
-    center.innerHTML = '<div class="center-title">mingmax</div><div class="center-info">紫微斗数命盘</div>';
+    var titleEl = document.createElement("div");
+    titleEl.className = "center-title";
+    titleEl.textContent = "mingmax";
+    center.appendChild(titleEl);
+
+    var meta = chart.metadata || {};
+    var unavailable = "暂未提供";
+    var infoLines = ["紫微斗数命盘"];
+    var fiveElements = chart.five_elements_class || meta.five_elements_class || unavailable;
+    infoLines.push("五行局: " + fiveElements);
+    infoLines.push("农历: " + (meta.lunar_date || unavailable));
+    infoLines.push("四柱背景: " + (meta.chinese_date || unavailable));
+
+    var mingPalace = palaceByIndex[chart.ming_palace_index];
+    var bodyPalace = palaceByIndex[chart.body_palace_index];
+    infoLines.push("命宫: " + (mingPalace ? mingPalace.name : unavailable));
+    infoLines.push("身宫: " + (bodyPalace ? bodyPalace.name : unavailable));
+
+    infoLines.push("虚岁: " + (chart.current_age != null ? chart.current_age : unavailable));
+    if (chart.current_decadal) {
+      var cd = chart.current_decadal;
+      infoLines.push("大限: " + cd.start_age + "-" + cd.end_age + " " + (cd.palace_name || ""));
+    } else {
+      infoLines.push("大限: " + unavailable);
+    }
+
+    for (var i = 0; i < infoLines.length; i++) {
+      var lineEl = document.createElement("div");
+      lineEl.className = "center-line";
+      lineEl.textContent = infoLines[i];
+      center.appendChild(lineEl);
+    }
+
     chartGrid.appendChild(center);
   }
 
@@ -416,6 +467,13 @@
       frag.appendChild(b);
     }
 
+    if (palace.decadal && palace.decadal.start_age != null && palace.decadal.end_age != null) {
+      var decEl = document.createElement("div");
+      decEl.className = "palace-decadal";
+      decEl.textContent = palace.decadal.start_age + "-" + palace.decadal.end_age;
+      frag.appendChild(decEl);
+    }
+
     return frag;
   }
 
@@ -459,6 +517,25 @@
     container.appendChild(row);
   }
 
+  function addEvidenceTags(container, label, evidenceIds) {
+    if (!evidenceIds || evidenceIds.length === 0) return;
+    var wrap = document.createElement("div");
+    wrap.className = "evidence-tags";
+    if (label) {
+      var labelEl = document.createElement("span");
+      labelEl.className = "evidence-label";
+      labelEl.textContent = label;
+      wrap.appendChild(labelEl);
+    }
+    for (var i = 0; i < evidenceIds.length; i++) {
+      var tag = document.createElement("span");
+      tag.className = "evidence-tag";
+      tag.textContent = evidenceIds[i];
+      wrap.appendChild(tag);
+    }
+    container.appendChild(wrap);
+  }
+
   function _addStarsGroup(container, title, stars) {
     var group = document.createElement("div");
     group.className = "detail-stars-group";
@@ -468,7 +545,10 @@
     var div = document.createElement("div");
     var names = [];
     for (var i = 0; i < stars.length; i++) {
-      names.push(stars[i].name + (stars[i].brightness ? "（" + stars[i].brightness + "）" : ""));
+      var parts = [stars[i].name];
+      if (stars[i].brightness) parts.push("（" + stars[i].brightness + "）");
+      if (stars[i].scope) parts.push("[" + stars[i].scope + "]");
+      names.push(parts.join(""));
     }
     div.textContent = names.length > 0 ? names.join("、") : "无";
     group.appendChild(div);
@@ -525,6 +605,14 @@
       _addDetailRow(palaceDetailContent, "借入主星：", palace.borrowed_major_stars.join("、"));
     }
 
+    if (palace.decadal) {
+      var d = palace.decadal;
+      var decText = d.start_age + "-" + d.end_age + "岁";
+      if (d.heavenly_stem) decText += " " + d.heavenly_stem;
+      if (d.earthly_branch) decText += d.earthly_branch;
+      _addDetailRow(palaceDetailContent, "大限：", decText);
+    }
+
     if (palace.four_hua) {
       var fh = palace.four_hua;
       var huaList = [];
@@ -564,37 +652,123 @@
       (chart.summary || "N/A");
 
     var analysis = data.analysis || {};
-    analysisSummary.textContent =
-      analysis.summary || "无分析结果";
 
+    // Structured analysis overview
+    analysisOverview.textContent = "";
+    var overviewH3 = document.createElement("h3");
+    overviewH3.textContent = "分析概览";
+    analysisOverview.appendChild(overviewH3);
+    var overviewP = document.createElement("p");
+    overviewP.textContent = analysis.summary || "无分析结果";
+    analysisOverview.appendChild(overviewP);
+
+    // Strong signals
+    var strongSignals = analysis.strong_signals || [];
+    if (strongSignals.length > 0) {
+      show(analysisStrongSignals);
+      analysisStrongSignals.textContent = "";
+      var h3 = document.createElement("h3");
+      h3.textContent = "强信号";
+      analysisStrongSignals.appendChild(h3);
+      var ul = document.createElement("ul");
+      for (var i = 0; i < strongSignals.length; i++) {
+        var li = document.createElement("li");
+        li.textContent = strongSignals[i];
+        ul.appendChild(li);
+      }
+      analysisStrongSignals.appendChild(ul);
+    } else {
+      hide(analysisStrongSignals);
+    }
+
+    // Weak hypotheses
+    var weakHypotheses = analysis.weak_hypotheses || [];
+    if (weakHypotheses.length > 0) {
+      show(analysisWeakHypotheses);
+      analysisWeakHypotheses.textContent = "";
+      var h3 = document.createElement("h3");
+      h3.textContent = "弱假设";
+      analysisWeakHypotheses.appendChild(h3);
+      var ul = document.createElement("ul");
+      for (var i = 0; i < weakHypotheses.length; i++) {
+        var li = document.createElement("li");
+        li.textContent = weakHypotheses[i];
+        ul.appendChild(li);
+      }
+      analysisWeakHypotheses.appendChild(ul);
+    } else {
+      hide(analysisWeakHypotheses);
+    }
+
+    // Cross checks
+    var crossChecks = analysis.cross_checks || [];
+    if (crossChecks.length > 0) {
+      show(analysisCrossChecks);
+      analysisCrossChecks.textContent = "";
+      var h3 = document.createElement("h3");
+      h3.textContent = "交叉校验";
+      analysisCrossChecks.appendChild(h3);
+      var ul = document.createElement("ul");
+      for (var i = 0; i < crossChecks.length; i++) {
+        var li = document.createElement("li");
+        li.textContent = crossChecks[i];
+        ul.appendChild(li);
+      }
+      analysisCrossChecks.appendChild(ul);
+    } else {
+      hide(analysisCrossChecks);
+    }
+
+    // Theme analyses
     var themes = analysis.theme_analyses || [];
     if (themes.length > 0) {
       show(themeAnalysesSection);
-      themeAnalyses.innerHTML = "";
+      themeAnalyses.textContent = "";
       themes.forEach(function (t) {
         var div = document.createElement("div");
         div.className = "theme-analysis";
         var h4 = document.createElement("h4");
         h4.textContent = t.theme || "未知主题";
         div.appendChild(h4);
-        var pre = document.createElement("pre");
-        pre.textContent = JSON.stringify(t, null, 2);
-        div.appendChild(pre);
+
+        if (t.observations && t.observations.length > 0) {
+          var obsDiv = document.createElement("div");
+          obsDiv.textContent = "观察: " + t.observations.join("；");
+          div.appendChild(obsDiv);
+        }
+        if (t.supporting_evidence && t.supporting_evidence.length > 0) {
+          addEvidenceTags(div, "证据:", t.supporting_evidence);
+        }
+        if (t.uncertainty) {
+          var uncDiv = document.createElement("div");
+          uncDiv.textContent = "不确定性: " + t.uncertainty;
+          div.appendChild(uncDiv);
+        }
+
         themeAnalyses.appendChild(div);
       });
     } else {
       hide(themeAnalysesSection);
     }
 
+    // Followup questions
     var questions = data.followup_questions || [];
     if (questions.length > 0) {
       show(followupSection);
-      followupQuestions.innerHTML = "";
+      followupQuestions.textContent = "";
       questions.forEach(function (q) {
         var li = document.createElement("li");
-        li.textContent =
-          q.question +
-          (q.reason ? "（原因：" + q.reason + "）" : "");
+        var questionText = document.createElement("span");
+        questionText.textContent = q.question || "";
+        li.appendChild(questionText);
+        if (q.reason) {
+          var reasonText = document.createElement("span");
+          reasonText.textContent = "（原因：" + q.reason + "）";
+          li.appendChild(reasonText);
+        }
+        if (q.related_chart_factors && q.related_chart_factors.length > 0) {
+          addEvidenceTags(li, "关联:", q.related_chart_factors);
+        }
         followupQuestions.appendChild(li);
       });
     } else {

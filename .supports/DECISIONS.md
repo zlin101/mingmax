@@ -247,3 +247,16 @@ BirthInfo -> ZiweiChartEngine -> RawChart -> NormalizedChart -> ZiweiAnalysisAge
   - 大限数据可以进入内部结构和 `chart_facts`，并开放"大限区间级辅助分析"；但流年、流月、流日、流时仍不支持，不能预测具体年份或具体事件发生；
   - `chinese_date` 可作为四柱字符串事实进入命盘背景，但 v0.1 仍不开放八字分析。
 - 影响：Branch 16/17 合并为一次较大的事实层与大限基础分析能力重构；前端参考文墨天机的信息密度设计另开后续分支，不与本轮混做。
+
+### D030: 桌面端高信息密度命盘工作台
+
+- 状态：已确认
+- 背景：Branch 12 的前端是简单表单 + 840px 线性布局，未展示 Branch 16/17 新增的 metadata、decadal、scope、structured analysis 等字段。
+- 决策：Branch 18 将前端升级为桌面工作台布局（max-width 1440px），4x4 盘面 + 侧边详情面板并排，结构化分析段落替代 JSON.stringify 展示。
+- 约束：
+  - 仅桌面端，不做移动端适配（移除 600px media query）；
+  - 不引入 React/Vue/Vite/Tailwind 或前端构建链；
+  - 所有动态内容使用 textContent/DOM 节点，不使用 innerHTML（XSS 安全）；
+  - 不写入 localStorage/sessionStorage/cookie；
+  - 前端只消费 API 返回字段，不计算排盘关系。
+- 影响：前端展示信息密度显著提升，current decadal 宫位高亮，分析结果按信号强度分层展示。
